@@ -2,6 +2,12 @@ let modalOverlay = null;
 let modalContainer = null;
 let previousFocus = null;
 
+function handleKeyDown(event) {
+  if (event.key === 'Escape') {
+    closeModal();
+  }
+}
+
 export function openModal(title, images) {
   closeModal(); // Ensure only one modal
 
@@ -45,6 +51,9 @@ export function openModal(title, images) {
   modalOverlay.appendChild(modalContainer);
   document.body.appendChild(modalOverlay);
 
+  // Add keyboard event listener
+  document.addEventListener('keydown', handleKeyDown);
+
   // Focus the close button
   closeBtn.focus();
 }
@@ -55,6 +64,9 @@ export function closeModal() {
   }
   modalOverlay = null;
   modalContainer = null;
+
+  // Remove keyboard event listener
+  document.removeEventListener('keydown', handleKeyDown);
 
   // Restore scroll and focus
   document.body.style.overflow = '';
