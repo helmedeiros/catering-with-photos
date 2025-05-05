@@ -10,6 +10,14 @@ export function openModal(title, images) {
   modalContainer = document.createElement('div');
   modalContainer.className = 'cwph-modal';
 
+  // Close button
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'cwph-modal-close';
+  closeBtn.setAttribute('aria-label', 'Close');
+  closeBtn.innerHTML = '✖️';
+  closeBtn.addEventListener('click', closeModal);
+  modalContainer.appendChild(closeBtn);
+
   const titleElem = document.createElement('h2');
   titleElem.textContent = title;
   modalContainer.appendChild(titleElem);

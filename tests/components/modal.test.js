@@ -34,4 +34,13 @@ describe('modal.js', () => {
     expect(imgs[1].src).toMatch(/img2\.jpg/);
     expect(imgs[2].src).toMatch(/img3\.jpg/);
   });
+
+  it('removes modal and overlay when close button is clicked', () => {
+    openModal('Test Dish', ['img1.jpg']);
+    const closeBtn = document.querySelector('.cwph-modal-close');
+    expect(closeBtn).toBeTruthy();
+    closeBtn.click();
+    expect(document.querySelector('.cwph-modal-overlay')).toBeNull();
+    expect(document.querySelector('.cwph-modal')).toBeNull();
+  });
 });
