@@ -89,4 +89,45 @@ describe('content.js', () => {
       expect(style.borderRadius).toBe('4px');
     });
   });
+
+  test('adds 🔍 icons to meal nodes', async () => {
+    await jest.isolateModulesAsync(async () => {
+      // Set up top bar
+      const topBar = document.createElement('div');
+      topBar.className = 'sc-d-date-picker';
+      document.body.appendChild(topBar);
+
+      // Set up meal nodes
+      const menuContainer = document.createElement('div');
+      menuContainer.className = 'PlasmicMenuplanmanagement_container';
+      for (let i = 0; i < 3; i++) {
+        const mealNode = document.createElement('div');
+        mealNode.className = 'meal-name';
+        mealNode.textContent = `Meal ${i + 1}`;
+        menuContainer.appendChild(mealNode);
+      }
+      document.body.appendChild(menuContainer);
+
+      jest.unstable_mockModule('../utils/dom-utils.js', () => ({
+        waitForMenu: jest.fn(() => Promise.resolve()),
+      }));
+
+      const { enhanceMenu } = await import('../content.js');
+      await enhanceMenu();
+
+      const addButton = document.getElementById('cwph-add');
+      expect(addButton).toBeTruthy();
+      addButton.click();
+
+      const mealNodes = document.querySelectorAll('.PlasmicMenuplanmanagement_container .meal-name');
+      const iconNodes = document.querySelectorAll('.cwph-icon');
+      expect(iconNodes.length).toBe(mealNodes.length);
+      expect(iconNodes.length).toBe(3);
+
+      // Verify data-dish attributes
+      iconNodes.forEach((icon, index) => {
+        expect(icon.getAttribute('data-dish')).toBe(`Meal ${index + 1}`);
+      });
+    });
+  });
 });
