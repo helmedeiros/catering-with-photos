@@ -1,0 +1,19 @@
+{
+  "name": "catering-with-photos",
+  "version": "1.0.0",
+  "description": "Chrome extension that enhances Z-Catering menu with food images",
+  "scripts": {
+    "test": "jest"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "puppeteer": "^22.0.0",
+    "eslint": "^8.56.0",
+    "prettier": "^3.2.5",
+    "cross-env": "^7.0.3",
+    "jest-puppeteer": "^9.0.2"
+  },
+  "jest": {
+    "preset": "jest-puppeteer"
+  }
+}
