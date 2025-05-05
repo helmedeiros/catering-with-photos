@@ -24,7 +24,7 @@ Each task maps directly to a prompt from `prompt_plan.md`.
 - [x] S2‑1: Scan meals and add 🔍 icons
 - [x] S2‑2: Add click handler stub
 - [x] S2‑3: Style the icon
-- [ ] S2‑4: E2E: icons injected properly
+- [x] S2‑4: E2E: icons injected properly
 
 ## 💬 M3 · Modal Viewer
 
