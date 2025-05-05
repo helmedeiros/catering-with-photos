@@ -1,0 +1,13 @@
+#cwph-add {
+  background: #1976d2;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+#cwph-add:hover {
+  background: #1565c0;
+}

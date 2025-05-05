@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "test": "node --no-warnings --experimental-vm-modules node_modules/jest/bin/jest.js",
-    "test:e2e": "node --no-warnings --experimental-vm-modules node_modules/jest/bin/jest.js tests/chrome.test.js",
-    "test:unit": "node --no-warnings --experimental-vm-modules node_modules/jest/bin/jest.js tests/dom-utils.test.js"
+    "test:e2e": "node --no-warnings --experimental-vm-modules node_modules/jest/bin/jest.js tests/e2e/*.js",
+    "test:unit": "node --no-warnings --experimental-vm-modules node_modules/jest/bin/jest.js tests/*.test.js"
   },
   "devDependencies": {
     "@babel/core": "^7.27.1",
@@ -26,12 +26,13 @@
       {
         "displayName": "Unit Tests",
         "testEnvironment": "jsdom",
-        "testMatch": ["<rootDir>/tests/dom-utils.test.js"]
+        "injectGlobals": true,
+        "testMatch": ["<rootDir>/tests/*.test.js", "<rootDir>/tests/*.test.cjs"]
       },
       {
         "displayName": "E2E Tests",
         "preset": "jest-puppeteer",
-        "testMatch": ["<rootDir>/tests/chrome.test.js"]
+        "testMatch": ["<rootDir>/tests/e2e/*.js"]
       }
     ]
   }
