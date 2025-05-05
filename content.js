@@ -1,4 +1,5 @@
 import { waitForMenu } from './utils/dom-utils.js';
+import { openModal, closeModal } from './components/modal.js';
 
 function injectAddImagesButton() {
   const topBar = document.querySelector('.sc-d-date-picker');
@@ -75,3 +76,12 @@ export async function enhanceMenu() {
 if (typeof window !== 'undefined' && !window.__CWPH_TEST__) {
   enhanceMenu();
 }
+
+// Add event delegation for icon clicks
+document.body.addEventListener('click', (event) => {
+  const iconElement = event.target.closest('.cwph-icon');
+  if (iconElement) {
+    const dishName = iconElement.getAttribute('data-dish');
+    openModal(dishName, []);
+  }
+});
