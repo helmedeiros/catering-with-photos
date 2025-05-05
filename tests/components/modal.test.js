@@ -25,4 +25,13 @@ describe('modal.js', () => {
     expect(document.querySelector('.cwph-modal-overlay')).toBeNull();
     expect(document.querySelector('.cwph-modal')).toBeNull();
   });
+
+  it('renders three dummy images with correct src attributes', () => {
+    openModal('Dummy Dish', ['img1.jpg', 'img2.jpg', 'img3.jpg']);
+    const imgs = document.querySelectorAll('.cwph-modal-images img');
+    expect(imgs.length).toBe(3);
+    expect(imgs[0].src).toMatch(/img1\.jpg/);
+    expect(imgs[1].src).toMatch(/img2\.jpg/);
+    expect(imgs[2].src).toMatch(/img3\.jpg/);
+  });
 });

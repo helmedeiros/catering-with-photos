@@ -29,7 +29,7 @@ Each task maps directly to a prompt from `prompt_plan.md`.
 ## 💬 M3 · Modal Viewer
 
 - [x] S3‑1: Create modal shell
-- [ ] S3‑2: Add dummy images in modal
+- [x] S3‑2: Add dummy images in modal
 - [ ] S3‑3: Add close button
 - [ ] S3‑4: Implement focus trap and scroll lock
 - [ ] S3‑5: E2E modal flow

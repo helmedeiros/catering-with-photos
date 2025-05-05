@@ -82,6 +82,6 @@ document.body.addEventListener('click', (event) => {
   const iconElement = event.target.closest('.cwph-icon');
   if (iconElement) {
     const dishName = iconElement.getAttribute('data-dish');
-    openModal(dishName, []);
+    openModal(dishName, ['img1.jpg', 'img2.jpg', 'img3.jpg']);
   }
 });
