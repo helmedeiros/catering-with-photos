@@ -7,6 +7,18 @@ function injectAddImagesButton() {
     btn.id = 'cwph-add';
     btn.textContent = 'Add Images';
     topBar.appendChild(btn);
+    btn.addEventListener('click', () => {
+      const mealNodes = document.querySelectorAll('.PlasmicMenuplanmanagement_container .meal-name');
+      mealNodes.forEach(mealNode => {
+        if (!mealNode.querySelector('.cwph-icon')) {
+          const iconSpan = document.createElement('span');
+          iconSpan.className = 'cwph-icon';
+          iconSpan.setAttribute('data-dish', mealNode.textContent.trim());
+          iconSpan.textContent = '🔍';
+          mealNode.appendChild(iconSpan);
+        }
+      });
+    });
   }
 }
 
