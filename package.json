@@ -2,18 +2,37 @@
   "name": "catering-with-photos",
   "version": "1.0.0",
   "description": "Chrome extension that enhances Z-Catering menu with food images",
+  "type": "module",
   "scripts": {
-    "test": "jest"
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:e2e": "node --experimental-vm-modules node_modules/jest/bin/jest.js -c jest-puppeteer.config.js tests/chrome.test.js",
+    "test:unit": "node --experimental-vm-modules node_modules/jest/bin/jest.js tests/dom-utils.test.js"
   },
   "devDependencies": {
+    "@babel/core": "^7.24.0",
+    "@babel/preset-env": "^7.24.0",
     "jest": "^29.7.0",
     "puppeteer": "^22.0.0",
     "eslint": "^8.56.0",
     "prettier": "^3.2.5",
     "cross-env": "^7.0.3",
-    "jest-puppeteer": "^9.0.2"
+    "jest-puppeteer": "^9.0.2",
+    "jest-environment-jsdom": "^29.7.0"
   },
   "jest": {
-    "preset": "jest-puppeteer"
+    "testEnvironment": "jsdom",
+    "transform": {},
+    "projects": [
+      {
+        "displayName": "Unit Tests",
+        "testEnvironment": "jsdom",
+        "testMatch": ["<rootDir>/tests/dom-utils.test.js"]
+      },
+      {
+        "displayName": "E2E Tests",
+        "preset": "jest-puppeteer",
+        "testMatch": ["<rootDir>/tests/chrome.test.js"]
+      }
+    ]
   }
 }
