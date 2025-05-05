@@ -130,4 +130,57 @@ describe('content.js', () => {
       });
     });
   });
+
+  test('clicking an icon opens modal with placeholder images', async () => {
+    await jest.isolateModulesAsync(async () => {
+      // Mock the modal module
+      const mockOpenModal = jest.fn().mockReturnValue({
+        title: 'Test Meal',
+        images: ['placeholder1.jpg', 'placeholder2.jpg', 'placeholder3.jpg']
+      });
+
+      jest.unstable_mockModule('../components/modal.js', () => ({
+        openModal: mockOpenModal,
+        closeModal: jest.fn()
+      }));
+
+      jest.unstable_mockModule('../utils/dom-utils.js', () => ({
+        waitForMenu: jest.fn(() => Promise.resolve()),
+      }));
+
+      // Set up the DOM
+      const topBar = document.createElement('div');
+      topBar.className = 'sc-d-date-picker';
+      document.body.appendChild(topBar);
+
+      const menuContainer = document.createElement('div');
+      menuContainer.className = 'PlasmicMenuplanmanagement_container';
+      const mealNode = document.createElement('div');
+      mealNode.className = 'meal-name';
+      mealNode.textContent = 'Test Meal';
+      menuContainer.appendChild(mealNode);
+      document.body.appendChild(menuContainer);
+
+      // Import and initialize content
+      const { enhanceMenu } = await import('../content.js');
+      await enhanceMenu();
+
+      // Click the Add Images button to add icons
+      document.getElementById('cwph-add').click();
+
+      // Find and click the icon
+      const icon = document.querySelector('.cwph-icon');
+      icon.click();
+
+      // Verify modal was opened with correct arguments
+      expect(mockOpenModal).toHaveBeenCalledWith('Test Meal', []);
+      const result = mockOpenModal.mock.results[0].value;
+      expect(result.images).toHaveLength(3);
+      expect(result.images).toEqual([
+        'placeholder1.jpg',
+        'placeholder2.jpg',
+        'placeholder3.jpg'
+      ]);
+    });
+  });
 });
