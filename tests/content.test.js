@@ -173,7 +173,7 @@ describe('content.js', () => {
       icon.click();
 
       // Verify modal was opened with correct arguments
-      expect(mockOpenModal).toHaveBeenCalledWith('Test Meal', []);
+      expect(mockOpenModal).toHaveBeenCalledWith('Test Meal', ['img1.jpg', 'img2.jpg', 'img3.jpg']);
       const result = mockOpenModal.mock.results[0].value;
       expect(result.images).toHaveLength(3);
       expect(result.images).toEqual([
