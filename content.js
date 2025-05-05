@@ -27,18 +27,18 @@ function injectButtonStyles() {
   if (window.chrome && chrome.scripting && chrome.scripting.insertCSS) {
     chrome.scripting.insertCSS({
       target: {tabId: window.tabId || 0}, // tabId is required in real extension context
-      files: ['styles/button.css']
+      files: ['styles/button.css', 'styles/icon.css']
     });
   } else {
     // Fallback for JSDOM/testing: inject <style> tag
-    fetch('styles/button.css')
-      .then(r => r.text())
-      .then(css => {
-        const style = document.createElement('style');
-        style.textContent = css;
-        document.head.appendChild(style);
-      })
-      .catch(() => {});
+    Promise.all([
+      fetch('styles/button.css').then(r => r.text()),
+      fetch('styles/icon.css').then(r => r.text())
+    ]).then(([buttonCss, iconCss]) => {
+      const style = document.createElement('style');
+      style.textContent = buttonCss + '\n' + iconCss;
+      document.head.appendChild(style);
+    }).catch(() => {});
   }
 }
 

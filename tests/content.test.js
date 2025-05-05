@@ -183,4 +183,49 @@ describe('content.js', () => {
       ]);
     });
   });
+
+  test('applies icon styles correctly', async () => {
+    await jest.isolateModulesAsync(async () => {
+      // Set up top bar and meal nodes
+      const topBar = document.createElement('div');
+      topBar.className = 'sc-d-date-picker';
+      document.body.appendChild(topBar);
+
+      const menuContainer = document.createElement('div');
+      menuContainer.className = 'PlasmicMenuplanmanagement_container';
+      const mealNode = document.createElement('div');
+      mealNode.className = 'meal-name';
+      mealNode.textContent = 'Test Meal';
+      menuContainer.appendChild(mealNode);
+      document.body.appendChild(menuContainer);
+
+      // Mock fetch for both CSS files
+      global.fetch = jest.fn()
+        .mockImplementationOnce(() => Promise.resolve({
+          text: () => Promise.resolve('#cwph-add { border-radius: 4px; }')
+        }))
+        .mockImplementationOnce(() => Promise.resolve({
+          text: () => Promise.resolve('.cwph-icon { cursor: pointer; margin-left: 4px; }')
+        }));
+
+      jest.unstable_mockModule('../utils/dom-utils.js', () => ({
+        waitForMenu: jest.fn(() => Promise.resolve()),
+      }));
+
+      const { enhanceMenu } = await import('../content.js');
+      await enhanceMenu();
+
+      // Click the Add Images button to add icons
+      document.getElementById('cwph-add').click();
+
+      // Wait for styles to be applied
+      await new Promise(r => setTimeout(r, 10));
+
+      // Verify icon styles
+      const icon = document.querySelector('.cwph-icon');
+      const style = window.getComputedStyle(icon);
+      expect(style.cursor).toBe('pointer');
+      expect(style.marginLeft).toBe('4px');
+    });
+  });
 });
