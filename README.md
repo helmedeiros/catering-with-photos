@@ -4,6 +4,8 @@ z-catering-with-photos
 
 # 🍽️ Catering with Photos — Chrome Extension
 
+[![Tests](https://github.com/helio-medeiros/catering-with-photos/actions/workflows/test.yml/badge.svg)](https://github.com/helio-medeiros/catering-with-photos/actions/workflows/test.yml)
+
 **Catering with Photos** is a Chrome extension that enhances the meal selection interface on [Z-Catering](https://bestellung.z-catering.de/app/menuplan) by displaying relevant food images next to each menu item. It's designed to help kids (and parents) make more informed and engaging meal choices.
 
 ---
