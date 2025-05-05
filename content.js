@@ -10,9 +10,29 @@ function injectAddImagesButton() {
   }
 }
 
-(async function main() {
+function injectButtonStyles() {
+  if (window.chrome && chrome.scripting && chrome.scripting.insertCSS) {
+    chrome.scripting.insertCSS({
+      target: {tabId: window.tabId || 0}, // tabId is required in real extension context
+      files: ['styles/button.css']
+    });
+  } else {
+    // Fallback for JSDOM/testing: inject <style> tag
+    fetch('styles/button.css')
+      .then(r => r.text())
+      .then(css => {
+        const style = document.createElement('style');
+        style.textContent = css;
+        document.head.appendChild(style);
+      })
+      .catch(() => {});
+  }
+}
+
+export async function enhanceMenu() {
   try {
     await waitForMenu();
+    injectButtonStyles();
     injectAddImagesButton();
     const root = document.getElementById('root');
     if (root) {
@@ -37,4 +57,9 @@ function injectAddImagesButton() {
   } catch (e) {
     // Optionally log or handle error
   }
-})();
+}
+
+// For extension use, auto-run
+if (typeof window !== 'undefined' && !window.__CWPH_TEST__) {
+  enhanceMenu();
+}
