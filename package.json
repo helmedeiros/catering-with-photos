@@ -4,9 +4,9 @@
   "description": "Chrome extension that enhances Z-Catering menu with food images",
   "type": "module",
   "scripts": {
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
-    "test:e2e": "node --experimental-vm-modules node_modules/jest/bin/jest.js tests/chrome.test.js",
-    "test:unit": "node --experimental-vm-modules node_modules/jest/bin/jest.js tests/dom-utils.test.js"
+    "test": "node --no-warnings --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:e2e": "node --no-warnings --experimental-vm-modules node_modules/jest/bin/jest.js tests/chrome.test.js",
+    "test:unit": "node --no-warnings --experimental-vm-modules node_modules/jest/bin/jest.js tests/dom-utils.test.js"
   },
   "devDependencies": {
     "@babel/core": "^7.24.0",
