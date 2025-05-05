@@ -4,9 +4,11 @@
   "description": "Chrome extension that enhances Z-Catering menu with food images",
   "type": "module",
   "scripts": {
-    "test": "node --no-warnings --experimental-vm-modules node_modules/jest/bin/jest.js",
-    "test:e2e": "node --no-warnings --experimental-vm-modules node_modules/jest/bin/jest.js tests/chrome.test.js",
-    "test:unit": "node --no-warnings --experimental-vm-modules node_modules/jest/bin/jest.js tests/dom-utils.test.js"
+    "test": "npm run test:unit && npm run test:e2e:serve",
+    "test:unit": "node --no-warnings --experimental-vm-modules node_modules/jest/bin/jest.js tests/*.test.js",
+    "test:e2e": "node --no-warnings --experimental-vm-modules node_modules/jest/bin/jest.js tests/e2e/*.js",
+    "test:e2e:serve": "start-server-and-test serve http://localhost:5050 test:e2e",
+    "serve": "http-server -p 5050 --silent"
   },
   "devDependencies": {
     "@babel/core": "^7.27.1",
@@ -17,7 +19,9 @@
     "prettier": "^3.5.3",
     "cross-env": "^7.0.3",
     "jest-puppeteer": "^11.0.0",
-    "jest-environment-jsdom": "^29.7.0"
+    "jest-environment-jsdom": "^29.7.0",
+    "start-server-and-test": "^2.0.2",
+    "http-server": "^14.1.1"
   },
   "jest": {
     "testEnvironment": "jsdom",
@@ -26,12 +30,18 @@
       {
         "displayName": "Unit Tests",
         "testEnvironment": "jsdom",
-        "testMatch": ["<rootDir>/tests/dom-utils.test.js"]
+        "injectGlobals": true,
+        "testMatch": [
+          "<rootDir>/tests/*.test.js",
+          "<rootDir>/tests/*.test.cjs"
+        ]
       },
       {
         "displayName": "E2E Tests",
         "preset": "jest-puppeteer",
-        "testMatch": ["<rootDir>/tests/chrome.test.js"]
+        "testMatch": [
+          "<rootDir>/tests/e2e/*.js"
+        ]
       }
     ]
   }
