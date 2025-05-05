@@ -7,9 +7,9 @@ Each task maps directly to a prompt from `prompt_plan.md`.
 
 ## 🧱 M0 · Project Scaffold
 
-- [ ] S0‑1: Create `package.json` and lint config
-- [ ] S0‑2: Add `manifest.json` with minimal fields
-- [ ] S0‑3: Set up Jest + Puppeteer
+- [x] S0‑1: Create `package.json` and lint config
+- [x] S0‑2: Add `manifest.json` with minimal fields
+- [x] S0‑3: Set up Jest + Puppeteer
 
 ## 🔍 M1 · Content Detection
 
