@@ -43,4 +43,37 @@ describe('modal.js', () => {
     expect(document.querySelector('.cwph-modal-overlay')).toBeNull();
     expect(document.querySelector('.cwph-modal')).toBeNull();
   });
+
+  it('locks scroll when modal is open', () => {
+    openModal('Test Dish', ['img1.jpg']);
+    expect(document.body.style.overflow).toBe('hidden');
+    closeModal();
+    expect(document.body.style.overflow).toBe('');
+  });
+
+  it('traps focus in modal and restores it on close', () => {
+    // Create a button to focus before opening modal
+    const button = document.createElement('button');
+    button.textContent = 'Test Button';
+    document.body.appendChild(button);
+    button.focus();
+    expect(document.activeElement).toBe(button);
+
+    // Open modal and check focus is on close button
+    openModal('Test Dish', ['img1.jpg']);
+    const closeBtn = document.querySelector('.cwph-modal-close');
+    expect(document.activeElement).toBe(closeBtn);
+
+    // Close modal and check focus is restored
+    closeModal();
+    expect(document.activeElement).toBe(button);
+  });
+
+  it('sets proper ARIA attributes for accessibility', () => {
+    openModal('Test Dish', ['img1.jpg']);
+    const modal = document.querySelector('.cwph-modal');
+    expect(modal.getAttribute('role')).toBe('dialog');
+    expect(modal.getAttribute('aria-modal')).toBe('true');
+    expect(modal.getAttribute('aria-label')).toBe('Test Dish');
+  });
 });

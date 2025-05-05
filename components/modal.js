@@ -1,14 +1,22 @@
 let modalOverlay = null;
 let modalContainer = null;
+let previousFocus = null;
 
 export function openModal(title, images) {
   closeModal(); // Ensure only one modal
+
+  // Store previous focus and lock scroll
+  previousFocus = document.activeElement;
+  document.body.style.overflow = 'hidden';
 
   modalOverlay = document.createElement('div');
   modalOverlay.className = 'cwph-modal-overlay';
 
   modalContainer = document.createElement('div');
   modalContainer.className = 'cwph-modal';
+  modalContainer.setAttribute('role', 'dialog');
+  modalContainer.setAttribute('aria-modal', 'true');
+  modalContainer.setAttribute('aria-label', title);
 
   // Close button
   const closeBtn = document.createElement('button');
@@ -36,6 +44,9 @@ export function openModal(title, images) {
 
   modalOverlay.appendChild(modalContainer);
   document.body.appendChild(modalOverlay);
+
+  // Focus the close button
+  closeBtn.focus();
 }
 
 export function closeModal() {
@@ -44,4 +55,11 @@ export function closeModal() {
   }
   modalOverlay = null;
   modalContainer = null;
+
+  // Restore scroll and focus
+  document.body.style.overflow = '';
+  if (previousFocus) {
+    previousFocus.focus();
+    previousFocus = null;
+  }
 }
