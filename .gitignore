@@ -1,6 +1,6 @@
 # Dependencies
 node_modules/
-package-lock.json
+# package-lock.json  # Commented out to allow CI to work
 
 # Build outputs
 dist/
