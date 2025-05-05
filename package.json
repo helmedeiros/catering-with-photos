@@ -4,10 +4,9 @@
   "description": "Chrome extension that enhances Z-Catering menu with food images",
   "type": "module",
   "scripts": {
-    "test": "npm run test:unit && npm run test:e2e:serve",
-    "test:unit": "node --no-warnings --experimental-vm-modules node_modules/jest/bin/jest.js tests/*.test.js",
-    "test:e2e": "node --no-warnings --experimental-vm-modules node_modules/jest/bin/jest.js tests/e2e/*.js",
-    "test:e2e:serve": "start-server-and-test serve http://localhost:5050 test:e2e",
+    "test": "npm run test:unit && npm run test:e2e",
+    "test:unit": "node --no-warnings --experimental-vm-modules node_modules/jest/bin/jest.js --selectProjects 'Unit Tests'",
+    "test:e2e": "start-server-and-test serve http://localhost:5050 \"node --no-warnings --experimental-vm-modules node_modules/jest/bin/jest.js tests/e2e/*.e2e.js\"",
     "serve": "http-server -p 5050 --silent"
   },
   "devDependencies": {
@@ -32,8 +31,9 @@
         "testEnvironment": "jsdom",
         "injectGlobals": true,
         "testMatch": [
-          "<rootDir>/tests/*.test.js",
-          "<rootDir>/tests/*.test.cjs"
+          "<rootDir>/tests/**/*.test.js",
+          "<rootDir>/tests/**/*.test.cjs",
+          "!<rootDir>/tests/e2e/**"
         ]
       },
       {
