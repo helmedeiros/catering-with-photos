@@ -16,7 +16,7 @@ Each task maps directly to a prompt from `prompt_plan.md`.
 - [ ] S1‑1: Implement `waitForMenu` util
 - [ ] S1‑2: Inject "Add Images" button into top bar
 - [ ] S1‑3: Re-inject button on dynamic page changes
-- [ ] S1‑4: Style the "Add Images" button
+- [x] S1‑4: Style the "Add Images" button
 - [ ] S1‑5: E2E test for dynamic reinjection
 
 ## 🖼️ M2 · Icon Injection
