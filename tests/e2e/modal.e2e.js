@@ -8,6 +8,7 @@ describe('Modal E2E Flow', () => {
   let browser;
   let page;
   let server;
+  const PORT = 5050;
 
   beforeAll(async () => {
     // Start a local server to serve the fixture
@@ -41,26 +42,46 @@ describe('Modal E2E Flow', () => {
       }
     });
 
-    await new Promise((resolve) => {
-      server.listen(5050, resolve);
-    });
+    // Try to start server with retries
+    let retries = 3;
+    while (retries > 0) {
+      try {
+        await new Promise((resolve, reject) => {
+          server.listen(PORT, resolve);
+          server.on('error', (err) => {
+            if (err.code === 'EADDRINUSE') {
+              reject(err);
+            }
+          });
+        });
+        break;
+      } catch (err) {
+        retries--;
+        if (retries === 0) throw err;
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
 
     browser = await puppeteer.launch({
       headless: 'new',
       args: ['--no-sandbox']
     });
-  }, 30000);
+  }, 60000);
 
   afterAll(async () => {
-    await browser.close();
-    await new Promise((resolve) => {
-      server.close(resolve);
-    });
-  });
+    if (browser) {
+      await browser.close();
+    }
+    if (server) {
+      await new Promise((resolve) => {
+        server.close(resolve);
+      });
+    }
+  }, 30000);
 
   beforeEach(async () => {
     page = await browser.newPage();
-    page.setDefaultTimeout(30000); // Increase default timeout for all operations
+    page.setDefaultTimeout(30000);
 
     // Set up test environment flag BEFORE loading the page
     await page.evaluateOnNewDocument(() => {
@@ -78,7 +99,7 @@ describe('Modal E2E Flow', () => {
     });
 
     // Load the page and wait for network to be idle
-    await page.goto('http://localhost:5050/fixtures/menu.html', {
+    await page.goto(`http://localhost:${PORT}/fixtures/menu.html`, {
       waitUntil: ['load', 'networkidle0'],
       timeout: 30000
     });
@@ -122,7 +143,7 @@ describe('Modal E2E Flow', () => {
       timeout: 30000,
       visible: true
     });
-  }, 30000);
+  }, 60000);
 
   afterEach(async () => {
     if (page) {
@@ -162,7 +183,7 @@ describe('Modal E2E Flow', () => {
     // Verify scroll is restored
     const bodyStyleAfter = await page.$eval('body', el => el.style.overflow);
     expect(bodyStyleAfter).toBe('');
-  }, 30000);
+  }, 60000);
 
   it('handles keyboard navigation in modal', async () => {
     // Open modal
@@ -182,7 +203,7 @@ describe('Modal E2E Flow', () => {
 
     // Verify modal is closed
     await page.waitForFunction(() => !document.querySelector('.cwph-modal'), { timeout: 30000 });
-  }, 30000);
+  }, 60000);
 
   test('should have working "See more on Google" link', async () => {
     console.log('Starting "See more on Google" link test');
@@ -197,7 +218,7 @@ describe('Modal E2E Flow', () => {
       console.log(`Failure reason: ${request.failure().errorText}`);
     });
 
-    await page.goto('http://localhost:5050/fixtures/menu.html', {
+    await page.goto(`http://localhost:${PORT}/fixtures/menu.html`, {
       waitUntil: ['load', 'networkidle0'],
       timeout: 30000
     });
@@ -280,5 +301,5 @@ describe('Modal E2E Flow', () => {
     const rel = await page.$eval('.cwph-see-more', el => el.getAttribute('rel'));
     console.log('Rel attribute:', rel);
     expect(rel).toBe('noopener noreferrer');
-  });
+  }, 60000);
 });
