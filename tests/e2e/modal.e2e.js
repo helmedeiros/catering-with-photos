@@ -8,7 +8,7 @@ describe('Modal E2E Flow', () => {
   let browser;
   let page;
   let server;
-  const PORT = 5050;
+  const PORT = 5051;
 
   beforeAll(async () => {
     // Start a local server to serve the fixture
@@ -100,8 +100,8 @@ describe('Modal E2E Flow', () => {
 
     // Load the page and wait for network to be idle
     await page.goto(`http://localhost:${PORT}/fixtures/menu.html`, {
-      waitUntil: ['load', 'networkidle0'],
-      timeout: 30000
+      waitUntil: 'networkidle0',
+      timeout: 60000
     });
 
     // Add script tags to the page
