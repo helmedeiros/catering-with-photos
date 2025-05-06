@@ -5,9 +5,12 @@
   "type": "module",
   "scripts": {
     "test": "npm run test:unit && npm run test:e2e",
-    "test:unit": "node --no-warnings --experimental-vm-modules node_modules/jest/bin/jest.js --selectProjects 'Unit Tests'",
-    "test:e2e": "start-server-and-test serve http://localhost:5050 \"node --no-warnings --experimental-vm-modules node_modules/jest/bin/jest.js tests/e2e/*.e2e.js\"",
-    "serve": "http-server -p 5050 --silent"
+    "test:unit": "node --no-warnings --experimental-vm-modules node_modules/jest/bin/jest.js --selectProjects 'Unit Tests' --silent",
+    "test:e2e": "start-server-and-test serve:5050 http://localhost:5050 test:e2e:run",
+    "test:e2e:run": "node --no-warnings --experimental-vm-modules node_modules/jest/bin/jest.js tests/e2e/*.e2e.js --silent",
+    "serve": "http-server -p 5050 --silent",
+    "serve:5050": "http-server -p 5050 --silent",
+    "serve:5051": "http-server -p 5051 --silent"
   },
   "devDependencies": {
     "@babel/core": "^7.27.1",
