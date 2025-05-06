@@ -41,7 +41,9 @@ export async function fetchImages(query, count = 5) {
 
     return images;
   } catch (error) {
-    console.error('Error fetching images:', error);
+    if (!window.__CWPH_TEST__) {
+      console.error('Error fetching images:', error);
+    }
     throw error;
   }
 }
