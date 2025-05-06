@@ -54,6 +54,15 @@ export function openModal(title, images, errorMessage = null) {
   }
   modalContainer.appendChild(imgContainer);
 
+  // Add "See more on Google" link
+  const seeMoreLink = document.createElement('a');
+  seeMoreLink.href = `https://www.google.com/search?q=${encodeURIComponent(title)}&tbm=isch&safe=active`;
+  seeMoreLink.target = '_blank';
+  seeMoreLink.rel = 'noopener noreferrer';
+  seeMoreLink.className = 'cwph-see-more';
+  seeMoreLink.textContent = 'See more on Google';
+  modalContainer.appendChild(seeMoreLink);
+
   modalOverlay.appendChild(modalContainer);
   document.body.appendChild(modalOverlay);
 

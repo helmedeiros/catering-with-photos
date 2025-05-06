@@ -38,7 +38,7 @@ Each task maps directly to a prompt from `prompt_plan.md`.
 
 - [x] S4‑1: Create Google Images scraper util
 - [x] S4‑2: Connect scraper to modal display
-- [ ] S4‑3: Add "See more on Google" link
+- [x] S4‑3: Add "See more on Google" link
 - [ ] S4‑4: Add network error handling
 - [ ] S4‑5: E2E image scrape test
 
