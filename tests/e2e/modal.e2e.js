@@ -206,23 +206,10 @@ describe('Modal E2E Flow', () => {
   }, 60000);
 
   test('should have working "See more on Google" link', async () => {
-    console.log('Starting "See more on Google" link test');
-
-    // Enable request logging before page load
-    page.on('request', request => {
-      console.log(`Request made to: ${request.url()}`);
-    });
-
-    page.on('requestfailed', request => {
-      console.log(`Request failed: ${request.url()}`);
-      console.log(`Failure reason: ${request.failure().errorText}`);
-    });
-
     await page.goto(`http://localhost:${PORT}/fixtures/menu.html`, {
       waitUntil: ['load', 'networkidle0'],
       timeout: 30000
     });
-    console.log('Page loaded');
 
     // Add script tags to the page and wait for them to load
     await page.evaluate(() => {
@@ -244,7 +231,6 @@ describe('Modal E2E Flow', () => {
         });
       }));
     });
-    console.log('Scripts loaded');
 
     // Call enhanceMenu() and wait for it to complete
     await page.addScriptTag({
@@ -258,48 +244,35 @@ describe('Modal E2E Flow', () => {
     await page.evaluate(() => {
       window.enhanceMenu();
     });
-    console.log('Menu enhanced');
 
     // Wait for the add button to be visible and click it
     await page.waitForSelector('#cwph-add', { visible: true, timeout: 30000 });
-    console.log('Add button found');
     await page.click('#cwph-add');
-    console.log('Add button clicked');
 
     // Wait for icons to be injected
     await page.waitForSelector('.cwph-icon', { visible: true, timeout: 30000 });
-    console.log('Icons injected');
 
     // Click the first icon
     await page.click('.cwph-icon');
-    console.log('First icon clicked');
 
     // Wait for modal to appear
     await page.waitForSelector('.cwph-modal', { visible: true, timeout: 30000 });
-    console.log('Modal appeared');
 
     // Get the modal title
     const title = await page.$eval('.cwph-modal h2', el => el.textContent);
-    console.log('Modal title:', title);
 
     // Check if the "See more on Google" link exists and has correct href
     const link = await page.waitForSelector('.cwph-see-more', { visible: true, timeout: 30000 });
-    console.log('See more link found:', !!link);
-
     const href = await page.$eval('.cwph-see-more', el => el.getAttribute('href'));
     const expectedHref = `https://www.google.com/search?q=${encodeURIComponent(title)}&tbm=isch&safe=active`;
-    console.log('Actual href:', href);
-    console.log('Expected href:', expectedHref);
     expect(href).toBe(expectedHref);
 
     // Check if link opens in new tab
     const target = await page.$eval('.cwph-see-more', el => el.getAttribute('target'));
-    console.log('Target attribute:', target);
     expect(target).toBe('_blank');
 
     // Check if link has security attributes
     const rel = await page.$eval('.cwph-see-more', el => el.getAttribute('rel'));
-    console.log('Rel attribute:', rel);
     expect(rel).toBe('noopener noreferrer');
   }, 60000);
 });
