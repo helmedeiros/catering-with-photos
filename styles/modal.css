@@ -63,3 +63,10 @@
 .cwph-modal-close:hover {
   color: #d32f2f;
 }
+
+.cwph-modal-error {
+  color: #d32f2f;
+  text-align: center;
+  margin: 16px 0;
+  font-size: 1.1em;
+}

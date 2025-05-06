@@ -1,5 +1,6 @@
 import { waitForMenu } from './utils/dom-utils.js';
 import { openModal, closeModal } from './components/modal.js';
+import { fetchImages } from './utils/image-scraper.js';
 
 function injectAddImagesButton() {
   const topBar = document.querySelector('.sc-d-date-picker');
@@ -78,10 +79,19 @@ if (typeof window !== 'undefined' && !window.__CWPH_TEST__) {
 }
 
 // Add event delegation for icon clicks
-document.body.addEventListener('click', (event) => {
+document.body.addEventListener('click', async (event) => {
   const iconElement = event.target.closest('.cwph-icon');
   if (iconElement) {
     const dishName = iconElement.getAttribute('data-dish');
-    openModal(dishName, ['img1.jpg', 'img2.jpg', 'img3.jpg']);
+    try {
+      const images = await fetchImages(dishName);
+      if (images.length === 0) {
+        openModal(dishName, [], 'No images found');
+      } else {
+        openModal(dishName, images);
+      }
+    } catch (error) {
+      openModal(dishName, [], 'Error loading images. Try again later.');
+    }
   }
 });

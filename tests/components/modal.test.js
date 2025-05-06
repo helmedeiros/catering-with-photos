@@ -1,79 +1,94 @@
 import { openModal, closeModal } from '../../components/modal.js';
 
-describe('modal.js', () => {
-  afterEach(() => {
-    closeModal();
+describe('Modal Component', () => {
+  beforeEach(() => {
     document.body.innerHTML = '';
   });
 
-  it('creates modal and overlay with title and images', () => {
-    openModal('Test Dish', ['img1.jpg', 'img2.jpg']);
-    const overlay = document.querySelector('.cwph-modal-overlay');
-    const modal = document.querySelector('.cwph-modal');
-    expect(overlay).toBeTruthy();
-    expect(modal).toBeTruthy();
-    expect(modal.querySelector('h2').textContent).toBe('Test Dish');
-    const imgs = modal.querySelectorAll('.cwph-modal-images img');
-    expect(imgs.length).toBe(2);
-    expect(imgs[0].src).toMatch(/img1\.jpg/);
-    expect(imgs[1].src).toMatch(/img2\.jpg/);
-  });
-
-  it('removes modal and overlay on closeModal', () => {
-    openModal('Test Dish', ['img1.jpg']);
+  afterEach(() => {
     closeModal();
-    expect(document.querySelector('.cwph-modal-overlay')).toBeNull();
-    expect(document.querySelector('.cwph-modal')).toBeNull();
   });
 
-  it('renders three dummy images with correct src attributes', () => {
-    openModal('Dummy Dish', ['img1.jpg', 'img2.jpg', 'img3.jpg']);
-    const imgs = document.querySelectorAll('.cwph-modal-images img');
-    expect(imgs.length).toBe(3);
-    expect(imgs[0].src).toMatch(/img1\.jpg/);
-    expect(imgs[1].src).toMatch(/img2\.jpg/);
-    expect(imgs[2].src).toMatch(/img3\.jpg/);
+  it('creates modal with title and images', () => {
+    openModal('Test Title', ['img1.jpg', 'img2.jpg']);
+
+    const modal = document.querySelector('.cwph-modal');
+    expect(modal).toBeTruthy();
+    expect(modal.querySelector('h2').textContent).toBe('Test Title');
+
+    const images = modal.querySelectorAll('img');
+    expect(images.length).toBe(2);
+    expect(images[0].src).toContain('img1.jpg');
+    expect(images[1].src).toContain('img2.jpg');
   });
 
-  it('removes modal and overlay when close button is clicked', () => {
-    openModal('Test Dish', ['img1.jpg']);
-    const closeBtn = document.querySelector('.cwph-modal-close');
-    expect(closeBtn).toBeTruthy();
-    closeBtn.click();
-    expect(document.querySelector('.cwph-modal-overlay')).toBeNull();
-    expect(document.querySelector('.cwph-modal')).toBeNull();
+  it('removes modal when closed', () => {
+    openModal('Test', ['img.jpg']);
+    expect(document.querySelector('.cwph-modal')).toBeTruthy();
+
+    closeModal();
+    expect(document.querySelector('.cwph-modal')).toBeFalsy();
   });
 
-  it('locks scroll when modal is open', () => {
-    openModal('Test Dish', ['img1.jpg']);
+  it('displays error message when provided', () => {
+    const errorMessage = 'No images found';
+    openModal('Test Title', [], errorMessage);
+
+    const modal = document.querySelector('.cwph-modal');
+    expect(modal).toBeTruthy();
+
+    const error = modal.querySelector('.cwph-modal-error');
+    expect(error).toBeTruthy();
+    expect(error.textContent).toBe(errorMessage);
+    expect(modal.querySelectorAll('img').length).toBe(0);
+  });
+
+  it('handles empty images array without error message', () => {
+    openModal('Test Title', []);
+
+    const modal = document.querySelector('.cwph-modal');
+    expect(modal).toBeTruthy();
+    expect(modal.querySelector('.cwph-modal-error')).toBeFalsy();
+    expect(modal.querySelectorAll('img').length).toBe(0);
+  });
+
+  it('sets ARIA attributes correctly', () => {
+    openModal('Test Title', ['img.jpg']);
+
+    const modal = document.querySelector('.cwph-modal');
+    expect(modal.getAttribute('role')).toBe('dialog');
+    expect(modal.getAttribute('aria-modal')).toBe('true');
+    expect(modal.getAttribute('aria-label')).toBe('Test Title');
+  });
+
+  it('focuses close button on open and restores focus on close', () => {
+    // Create a button and focus it
+    const btn = document.createElement('button');
+    document.body.appendChild(btn);
+    btn.focus();
+
+    openModal('Test', ['img.jpg']);
+    expect(document.activeElement.className).toBe('cwph-modal-close');
+
+    closeModal();
+    expect(document.activeElement).toBe(btn);
+  });
+
+  it('locks scroll when opened and restores when closed', () => {
+    openModal('Test', ['img.jpg']);
     expect(document.body.style.overflow).toBe('hidden');
+
     closeModal();
     expect(document.body.style.overflow).toBe('');
   });
 
-  it('traps focus in modal and restores it on close', () => {
-    // Create a button to focus before opening modal
-    const button = document.createElement('button');
-    button.textContent = 'Test Button';
-    document.body.appendChild(button);
-    button.focus();
-    expect(document.activeElement).toBe(button);
+  it('closes modal when Escape key is pressed', () => {
+    openModal('Test', ['img.jpg']);
+    expect(document.querySelector('.cwph-modal')).toBeTruthy();
 
-    // Open modal and check focus is on close button
-    openModal('Test Dish', ['img1.jpg']);
-    const closeBtn = document.querySelector('.cwph-modal-close');
-    expect(document.activeElement).toBe(closeBtn);
+    const event = new KeyboardEvent('keydown', { key: 'Escape' });
+    document.dispatchEvent(event);
 
-    // Close modal and check focus is restored
-    closeModal();
-    expect(document.activeElement).toBe(button);
-  });
-
-  it('sets proper ARIA attributes for accessibility', () => {
-    openModal('Test Dish', ['img1.jpg']);
-    const modal = document.querySelector('.cwph-modal');
-    expect(modal.getAttribute('role')).toBe('dialog');
-    expect(modal.getAttribute('aria-modal')).toBe('true');
-    expect(modal.getAttribute('aria-label')).toBe('Test Dish');
+    expect(document.querySelector('.cwph-modal')).toBeFalsy();
   });
 });

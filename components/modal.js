@@ -8,7 +8,7 @@ function handleKeyDown(event) {
   }
 }
 
-export function openModal(title, images) {
+export function openModal(title, images, errorMessage = null) {
   closeModal(); // Ensure only one modal
 
   // Store previous focus and lock scroll
@@ -38,7 +38,13 @@ export function openModal(title, images) {
 
   const imgContainer = document.createElement('div');
   imgContainer.className = 'cwph-modal-images';
-  if (Array.isArray(images)) {
+
+  if (errorMessage) {
+    const errorElem = document.createElement('p');
+    errorElem.className = 'cwph-modal-error';
+    errorElem.textContent = errorMessage;
+    imgContainer.appendChild(errorElem);
+  } else if (Array.isArray(images) && images.length > 0) {
     images.forEach(src => {
       const img = document.createElement('img');
       img.src = src;
