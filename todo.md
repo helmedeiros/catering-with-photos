@@ -36,7 +36,7 @@ Each task maps directly to a prompt from `prompt_plan.md`.
 
 ## 🔍 M4 · Image Scraper
 
-- [ ] S4‑1: Create Google Images scraper util
+- [x] S4‑1: Create Google Images scraper util
 - [ ] S4‑2: Connect scraper to modal display
 - [ ] S4‑3: Add "See more on Google" link
 - [ ] S4‑4: Add network error handling
@@ -45,15 +45,15 @@ Each task maps directly to a prompt from `prompt_plan.md`.
 ## 💾 M5 · Caching Layer
 
 - [ ] S5‑1: Create localStorage cache util
-- [ ] S5‑2: Use cache in scraper
+- [ ] S5‑2: Use cache in scraper path
 - [ ] S5‑3: Add TTL to cache
 - [ ] S5‑4: E2E cache efficiency test
 
 ## 🧰 M6 · Toolbar Popup
 
 - [ ] S6‑1: Create `popup.html` with layout
-- [ ] S6‑2: Wire up popup JS logic
-- [ ] S6‑3: Implement manual image search
+- [ ] S6‑2: Wire popup JS logic
+- [ ] S6‑3: Implement manual search + enhance action
 - [ ] S6‑4: Implement "Enhance Menu" button
 - [ ] S6‑5: Add and render history list
 
