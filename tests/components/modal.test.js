@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { openModal, closeModal } from '../../components/modal.js';
 
 describe('Modal Component', () => {
@@ -90,5 +91,35 @@ describe('Modal Component', () => {
     document.dispatchEvent(event);
 
     expect(document.querySelector('.cwph-modal')).toBeFalsy();
+  });
+
+  test('shows error message and retry button when error occurs', () => {
+    const errorMessage = 'Unable to load images. Please check your internet connection and try again.';
+    openModal('Test Dish', [], errorMessage);
+
+    const errorElement = document.querySelector('.cwph-modal-error');
+    expect(errorElement).toBeTruthy();
+    expect(errorElement.textContent).toBe(errorMessage);
+
+    const retryButton = document.querySelector('.cwph-modal-retry');
+    expect(retryButton).toBeTruthy();
+    expect(retryButton.textContent).toBe('Retry');
+  });
+
+  test('dispatches retry event when retry button is clicked', () => {
+    const mockHandler = jest.fn();
+    document.addEventListener('cwph-retry', mockHandler);
+
+    openModal('Test Dish', [], 'Error message');
+    const retryButton = document.querySelector('.cwph-modal-retry');
+    retryButton.click();
+
+    expect(mockHandler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        detail: { title: 'Test Dish' }
+      })
+    );
+
+    document.removeEventListener('cwph-retry', mockHandler);
   });
 });

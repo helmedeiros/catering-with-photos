@@ -44,6 +44,17 @@ export function openModal(title, images, errorMessage = null) {
     errorElem.className = 'cwph-modal-error';
     errorElem.textContent = errorMessage;
     imgContainer.appendChild(errorElem);
+
+    // Add retry button
+    const retryBtn = document.createElement('button');
+    retryBtn.className = 'cwph-modal-retry';
+    retryBtn.textContent = 'Retry';
+    retryBtn.addEventListener('click', () => {
+      const event = new CustomEvent('cwph-retry', { detail: { title } });
+      document.dispatchEvent(event);
+      closeModal();
+    });
+    imgContainer.appendChild(retryBtn);
   } else if (Array.isArray(images) && images.length > 0) {
     images.forEach(src => {
       const img = document.createElement('img');

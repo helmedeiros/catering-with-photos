@@ -189,7 +189,7 @@ describe('content.js', () => {
     expect(mockOpenModal).toHaveBeenCalledWith(
       'Test Meal',
       [],
-      'No images found'
+      'No images found for this dish. Try a different search term.'
     );
   });
 
@@ -224,7 +224,7 @@ describe('content.js', () => {
     expect(mockOpenModal).toHaveBeenCalledWith(
       'Test Meal',
       [],
-      'Error loading images. Try again later.'
+      'Unable to load images. Please check your internet connection and try again.'
     );
   });
 

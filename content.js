@@ -86,12 +86,27 @@ document.body.addEventListener('click', async (event) => {
     try {
       const images = await fetchImages(dishName);
       if (images.length === 0) {
-        openModal(dishName, [], 'No images found');
+        openModal(dishName, [], 'No images found for this dish. Try a different search term.');
       } else {
         openModal(dishName, images);
       }
     } catch (error) {
-      openModal(dishName, [], 'Error loading images. Try again later.');
+      openModal(dishName, [], 'Unable to load images. Please check your internet connection and try again.');
     }
+  }
+});
+
+// Handle retry event
+document.addEventListener('cwph-retry', async (event) => {
+  const { title } = event.detail;
+  try {
+    const images = await fetchImages(title);
+    if (images.length === 0) {
+      openModal(title, [], 'No images found for this dish. Try a different search term.');
+    } else {
+      openModal(title, images);
+    }
+  } catch (error) {
+    openModal(title, [], 'Unable to load images. Please check your internet connection and try again.');
   }
 });
