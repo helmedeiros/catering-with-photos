@@ -1,5 +1,6 @@
 import { waitForMenu } from './utils/dom-utils.js';
 import { openModal, closeModal } from './components/modal.js';
+import { fetchImages } from './utils/image-scraper.js';
 
 function injectAddImagesButton() {
   const topBar = document.querySelector('.sc-d-date-picker');
@@ -78,10 +79,34 @@ if (typeof window !== 'undefined' && !window.__CWPH_TEST__) {
 }
 
 // Add event delegation for icon clicks
-document.body.addEventListener('click', (event) => {
+document.body.addEventListener('click', async (event) => {
   const iconElement = event.target.closest('.cwph-icon');
   if (iconElement) {
     const dishName = iconElement.getAttribute('data-dish');
-    openModal(dishName, ['img1.jpg', 'img2.jpg', 'img3.jpg']);
+    try {
+      const images = await fetchImages(dishName);
+      if (images.length === 0) {
+        openModal(dishName, [], 'No images found for this dish. Try a different search term.');
+      } else {
+        openModal(dishName, images);
+      }
+    } catch (error) {
+      openModal(dishName, [], 'Unable to load images. Please check your internet connection and try again.');
+    }
+  }
+});
+
+// Handle retry event
+document.addEventListener('cwph-retry', async (event) => {
+  const { title } = event.detail;
+  try {
+    const images = await fetchImages(title);
+    if (images.length === 0) {
+      openModal(title, [], 'No images found for this dish. Try a different search term.');
+    } else {
+      openModal(title, images);
+    }
+  } catch (error) {
+    openModal(title, [], 'Unable to load images. Please check your internet connection and try again.');
   }
 });

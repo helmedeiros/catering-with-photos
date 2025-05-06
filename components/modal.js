@@ -8,7 +8,7 @@ function handleKeyDown(event) {
   }
 }
 
-export function openModal(title, images) {
+export function openModal(title, images, errorMessage = null) {
   closeModal(); // Ensure only one modal
 
   // Store previous focus and lock scroll
@@ -38,7 +38,24 @@ export function openModal(title, images) {
 
   const imgContainer = document.createElement('div');
   imgContainer.className = 'cwph-modal-images';
-  if (Array.isArray(images)) {
+
+  if (errorMessage) {
+    const errorElem = document.createElement('p');
+    errorElem.className = 'cwph-modal-error';
+    errorElem.textContent = errorMessage;
+    imgContainer.appendChild(errorElem);
+
+    // Add retry button
+    const retryBtn = document.createElement('button');
+    retryBtn.className = 'cwph-modal-retry';
+    retryBtn.textContent = 'Retry';
+    retryBtn.addEventListener('click', () => {
+      const event = new CustomEvent('cwph-retry', { detail: { title } });
+      document.dispatchEvent(event);
+      closeModal();
+    });
+    imgContainer.appendChild(retryBtn);
+  } else if (Array.isArray(images) && images.length > 0) {
     images.forEach(src => {
       const img = document.createElement('img');
       img.src = src;
@@ -47,6 +64,15 @@ export function openModal(title, images) {
     });
   }
   modalContainer.appendChild(imgContainer);
+
+  // Add "See more on Google" link
+  const seeMoreLink = document.createElement('a');
+  seeMoreLink.href = `https://www.google.com/search?q=${encodeURIComponent(title)}&tbm=isch&safe=active`;
+  seeMoreLink.target = '_blank';
+  seeMoreLink.rel = 'noopener noreferrer';
+  seeMoreLink.className = 'cwph-see-more';
+  seeMoreLink.textContent = 'See more on Google';
+  modalContainer.appendChild(seeMoreLink);
 
   modalOverlay.appendChild(modalContainer);
   document.body.appendChild(modalOverlay);

@@ -1,7 +1,12 @@
 import { jest } from '@jest/globals';
 
 describe('content.js', () => {
-  beforeEach(() => {
+  let mockOpenModal;
+  let mockCloseModal;
+  let mockFetchImages;
+  let mockWaitForMenu;
+
+  beforeEach(async () => {
     document.body.innerHTML = '';
     const topBar = document.createElement('div');
     topBar.className = 'sc-d-date-picker';
@@ -9,12 +14,34 @@ describe('content.js', () => {
     global.window.__CWPH_TEST__ = true;
     global.fetch = jest.fn(() => Promise.resolve({
       text: () => Promise.resolve('#cwph-add { border-radius: 4px; }'),
+      ok: true
+    }));
+
+    // Initialize mock functions
+    mockOpenModal = jest.fn();
+    mockCloseModal = jest.fn();
+    mockFetchImages = jest.fn();
+    mockWaitForMenu = jest.fn().mockResolvedValue();
+
+    // Set up dynamic mocks
+    await jest.unstable_mockModule('../components/modal.js', () => ({
+      openModal: mockOpenModal,
+      closeModal: mockCloseModal
+    }));
+
+    await jest.unstable_mockModule('../utils/image-scraper.js', () => ({
+      fetchImages: mockFetchImages
+    }));
+
+    await jest.unstable_mockModule('../utils/dom-utils.js', () => ({
+      waitForMenu: mockWaitForMenu
     }));
   });
 
   afterEach(() => {
     document.body.innerHTML = '';
     jest.clearAllMocks();
+    jest.resetModules();
     delete global.window.__CWPH_TEST__;
   });
 
@@ -131,57 +158,74 @@ describe('content.js', () => {
     });
   });
 
-  test('clicking an icon opens modal with placeholder images', async () => {
-    await jest.isolateModulesAsync(async () => {
-      // Mock the modal module
-      const mockOpenModal = jest.fn().mockReturnValue({
-        title: 'Test Meal',
-        images: ['placeholder1.jpg', 'placeholder2.jpg', 'placeholder3.jpg']
-      });
+  test('clicking an icon shows error message when no images found', async () => {
+    // Configure mock for this test
+    mockFetchImages.mockResolvedValue([]);
 
-      jest.unstable_mockModule('../components/modal.js', () => ({
-        openModal: mockOpenModal,
-        closeModal: jest.fn()
-      }));
+    // Import the module
+    const contentModule = await import('../content.js');
+    await contentModule.enhanceMenu();
 
-      jest.unstable_mockModule('../utils/dom-utils.js', () => ({
-        waitForMenu: jest.fn(() => Promise.resolve()),
-      }));
+    // Set up the DOM
+    const menuContainer = document.createElement('div');
+    menuContainer.className = 'PlasmicMenuplanmanagement_container';
+    const mealNode = document.createElement('div');
+    mealNode.className = 'meal-name';
+    mealNode.textContent = 'Test Meal';
+    menuContainer.appendChild(mealNode);
+    document.body.appendChild(menuContainer);
 
-      // Set up the DOM
-      const topBar = document.createElement('div');
-      topBar.className = 'sc-d-date-picker';
-      document.body.appendChild(topBar);
+    // Click the Add Images button to add icons
+    document.getElementById('cwph-add').click();
 
-      const menuContainer = document.createElement('div');
-      menuContainer.className = 'PlasmicMenuplanmanagement_container';
-      const mealNode = document.createElement('div');
-      mealNode.className = 'meal-name';
-      mealNode.textContent = 'Test Meal';
-      menuContainer.appendChild(mealNode);
-      document.body.appendChild(menuContainer);
+    // Find and click the icon
+    const icon = document.querySelector('.cwph-icon');
+    await icon.click();
 
-      // Import and initialize content
-      const { enhanceMenu } = await import('../content.js');
-      await enhanceMenu();
+    // Wait for all promises to resolve
+    await new Promise(resolve => setTimeout(resolve, 100));
 
-      // Click the Add Images button to add icons
-      document.getElementById('cwph-add').click();
+    // Verify modal was opened with error message
+    expect(mockOpenModal).toHaveBeenCalledWith(
+      'Test Meal',
+      [],
+      'No images found for this dish. Try a different search term.'
+    );
+  });
 
-      // Find and click the icon
-      const icon = document.querySelector('.cwph-icon');
-      icon.click();
+  test('clicking an icon shows error message when fetch fails', async () => {
+    // Configure mock for this test
+    mockFetchImages.mockRejectedValue(new Error('Network error'));
 
-      // Verify modal was opened with correct arguments
-      expect(mockOpenModal).toHaveBeenCalledWith('Test Meal', ['img1.jpg', 'img2.jpg', 'img3.jpg']);
-      const result = mockOpenModal.mock.results[0].value;
-      expect(result.images).toHaveLength(3);
-      expect(result.images).toEqual([
-        'placeholder1.jpg',
-        'placeholder2.jpg',
-        'placeholder3.jpg'
-      ]);
-    });
+    // Import the module
+    const contentModule = await import('../content.js');
+    await contentModule.enhanceMenu();
+
+    // Set up the DOM
+    const menuContainer = document.createElement('div');
+    menuContainer.className = 'PlasmicMenuplanmanagement_container';
+    const mealNode = document.createElement('div');
+    mealNode.className = 'meal-name';
+    mealNode.textContent = 'Test Meal';
+    menuContainer.appendChild(mealNode);
+    document.body.appendChild(menuContainer);
+
+    // Click the Add Images button to add icons
+    document.getElementById('cwph-add').click();
+
+    // Find and click the icon
+    const icon = document.querySelector('.cwph-icon');
+    await icon.click();
+
+    // Wait for all promises to resolve
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // Verify modal was opened with error message
+    expect(mockOpenModal).toHaveBeenCalledWith(
+      'Test Meal',
+      [],
+      'Unable to load images. Please check your internet connection and try again.'
+    );
   });
 
   test('applies icon styles correctly', async () => {
