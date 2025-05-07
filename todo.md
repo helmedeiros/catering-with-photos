@@ -40,7 +40,7 @@ Each task maps directly to a prompt from `prompt_plan.md`.
 - [x] S4‑2: Connect scraper to modal display
 - [x] S4‑3: Add "See more on Google" link
 - [x] S4‑4: Add network error handling
-- [ ] S4‑5: E2E image scrape test (removed temporarily due to CSS/script loading issues)
+- [ ] S4‑5: E2E image scrape test
 
 ## 💾 M5 · Caching Layer
 
