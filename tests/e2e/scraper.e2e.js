@@ -10,7 +10,7 @@ describe('Image Scraper E2E', () => {
   let browser;
   let page;
   let server;
-  const PORT = 5050;
+  const PORT = 5052;
 
   beforeAll(async () => {
     console.log('Starting beforeAll hook...');
