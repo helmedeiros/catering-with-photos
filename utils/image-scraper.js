@@ -4,7 +4,15 @@
  * @param {number} count - Maximum number of images to return (default: 5)
  * @returns {Promise<string[]>} Array of image URLs
  */
+import { getCached, setCached } from './cache.js';
+
 export async function fetchImages(query, count = 5) {
+  // Check cache first
+  const cachedImages = getCached(query);
+  if (cachedImages) {
+    return cachedImages.slice(0, count);
+  }
+
   // In test environment, return mock images
   if (typeof window !== 'undefined' && window.__CWPH_TEST__) {
     // Mock Google search response
@@ -13,7 +21,9 @@ export async function fetchImages(query, count = 5) {
       'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
       'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
     ];
-    return mockImages.slice(0, count);
+    const images = mockImages.slice(0, count);
+    setCached(query, images);
+    return images;
   }
 
   // In production, use Google Images search
@@ -38,6 +48,9 @@ export async function fetchImages(query, count = 5) {
       .map(img => img.src)
       .filter(src => src.startsWith('http')) // Ensure valid URLs
       .slice(0, count); // Limit to requested count
+
+    // Cache the results
+    setCached(query, images);
 
     return images;
   } catch (error) {

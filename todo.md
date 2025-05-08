@@ -44,8 +44,8 @@ Each task maps directly to a prompt from `prompt_plan.md`.
 
 ## 💾 M5 · Caching Layer
 
-- [ ] S5‑1: Create localStorage cache util
-- [ ] S5‑2: Use cache in scraper path
+- [x] S5‑1: Create localStorage cache util
+- [x] S5‑2: Use cache in scraper path
 - [ ] S5‑3: Add TTL to cache
 - [ ] S5‑4: E2E cache efficiency test
 

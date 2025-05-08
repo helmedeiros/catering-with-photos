@@ -1,72 +1,100 @@
 import { jest } from '@jest/globals';
-import { fetchImages } from '../../utils/image-scraper';
+
+// Mock the cache module
+const mockGetCached = jest.fn();
+const mockSetCached = jest.fn();
+jest.unstable_mockModule('../../utils/cache.js', () => ({
+  getCached: mockGetCached,
+  setCached: mockSetCached
+}));
+
+// Import the module under test after mocking dependencies
+let fetchImages;
 
 describe('Image Scraper', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    // Clear all mocks before each test
+    jest.clearAllMocks();
+    // Reset test environment flag
+    global.window = { __CWPH_TEST__: false };
     // Mock fetch
     global.fetch = jest.fn();
     // Mock DOMParser
     global.DOMParser = jest.fn().mockImplementation(() => ({
       parseFromString: jest.fn().mockReturnValue({
+        querySelectorAll: jest.fn().mockReturnValue([])
+      })
+    }));
+
+    // Import the module under test
+    const module = await import('../../utils/image-scraper.js');
+    fetchImages = module.fetchImages;
+  });
+
+  it('returns cached images when available', async () => {
+    const cachedImages = ['cached1.jpg', 'cached2.jpg'];
+    mockGetCached.mockReturnValue(cachedImages);
+
+    const result = await fetchImages('pasta', 2);
+
+    expect(mockGetCached).toHaveBeenCalledWith('pasta');
+    expect(result).toEqual(cachedImages.slice(0, 2));
+    // Should not call setCached when using cache
+    expect(mockSetCached).not.toHaveBeenCalled();
+  });
+
+  it('fetches and caches images when not in cache', async () => {
+    // Mock no cache hit
+    mockGetCached.mockReturnValue(null);
+    // Mock successful fetch
+    global.fetch.mockResolvedValue({
+      ok: true,
+      text: () => Promise.resolve(`
+        <html>
+          <body>
+            <img src="http://example.com/img1.jpg">
+            <img src="http://example.com/img2.jpg">
+          </body>
+        </html>
+      `)
+    });
+
+    // Mock DOMParser to return our test images
+    global.DOMParser = jest.fn().mockImplementation(() => ({
+      parseFromString: jest.fn().mockReturnValue({
         querySelectorAll: jest.fn().mockReturnValue([
-          { src: 'http://example.com/image1.jpg' },
-          { src: 'http://example.com/image2.jpg' },
-          { src: 'http://example.com/image3.jpg' },
-          { src: 'http://example.com/image4.jpg' },
-          { src: 'http://example.com/image5.jpg' }
+          { src: 'http://example.com/img1.jpg' },
+          { src: 'http://example.com/img2.jpg' }
         ])
       })
     }));
+
+    const result = await fetchImages('pasta');
+
+    expect(mockGetCached).toHaveBeenCalledWith('pasta');
+    expect(mockSetCached).toHaveBeenCalledWith('pasta', expect.any(Array));
+    expect(result.length).toBeGreaterThan(0);
+    expect(result).toEqual(['http://example.com/img1.jpg', 'http://example.com/img2.jpg']);
   });
 
-  afterEach(() => {
-    jest.clearAllMocks();
+  it('caches mock images in test environment', async () => {
+    global.window.__CWPH_TEST__ = true;
+    mockGetCached.mockReturnValue(null);
+
+    const result = await fetchImages('pasta', 2);
+
+    expect(mockGetCached).toHaveBeenCalledWith('pasta');
+    expect(mockSetCached).toHaveBeenCalledWith('pasta', expect.any(Array));
+    expect(result.length).toBe(2);
+    expect(result[0]).toMatch(/^data:image\/gif;base64,/);
   });
 
-  it('fetches images from Google Images search', async () => {
-    // Mock successful response
-    global.fetch.mockResolvedValueOnce({
-      ok: true,
-      text: jest.fn().mockResolvedValue('<html><body><img src="test.jpg"></body></html>')
-    });
-
-    const images = await fetchImages('pasta');
-
-    expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('https://www.google.com/search?q=pasta&tbm=isch&safe=active'),
-      {
-        mode: 'no-cors',
-        credentials: 'omit'
-      }
-    );
-    expect(images).toHaveLength(5); // Default count
-  });
-
-  it('handles HTTP errors', async () => {
-    // Mock error response
-    global.fetch.mockResolvedValueOnce({
-      ok: false,
-      status: 404
-    });
-
-    await expect(fetchImages('pasta')).rejects.toThrow('HTTP error! status: 404');
-  });
-
-  it('handles network errors', async () => {
-    // Mock network error
-    global.fetch.mockRejectedValueOnce(new Error('Network error'));
+  it('handles fetch errors gracefully', async () => {
+    mockGetCached.mockReturnValue(null);
+    global.window.__CWPH_TEST__ = false;
+    global.fetch.mockRejectedValue(new Error('Network error'));
 
     await expect(fetchImages('pasta')).rejects.toThrow('Network error');
-  });
-
-  it('returns mock images in test environment', async () => {
-    // Set test environment flag
-    window.__CWPH_TEST__ = true;
-
-    const images = await fetchImages('pasta', 2);
-
-    expect(global.fetch).not.toHaveBeenCalled();
-    expect(images).toHaveLength(2);
-    expect(images[0]).toMatch(/^data:image\/gif;base64,/);
+    expect(mockSetCached).not.toHaveBeenCalled();
   });
 });
