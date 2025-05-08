@@ -39,7 +39,9 @@
         "displayName": "Unit Tests",
         "testEnvironment": "jsdom",
         "injectGlobals": true,
-        "setupFilesAfterEnv": ["<rootDir>/tests/setupJest.js"],
+        "setupFilesAfterEnv": [
+          "<rootDir>/tests/setupJest.js"
+        ],
         "testMatch": [
           "<rootDir>/tests/**/*.test.js",
           "<rootDir>/tests/**/*.test.cjs",
