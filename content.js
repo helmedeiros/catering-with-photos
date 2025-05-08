@@ -2,11 +2,11 @@
 // Import fetchImages from the proper location
 import { fetchImages } from './utils/image-scraper.js';
 // content-script.js - Non-module version of the content script
-// Build: 2025-05-08T19:24:59.182Z
+// Build: 2025-05-08T19:31:05.870Z
 
 // Debug info
-console.log('%c Catering with Photos v1.0.1 ', 'background: #4CAF50; color: white; font-size: 12px; border-radius: 4px; padding: 2px 6px;');
-console.log('Build time:', '2025-05-08T19:24:59.182Z');
+console.log('%c Catering with Photos v1.0.2 ', 'background: #4CAF50; color: white; font-size: 12px; border-radius: 4px; padding: 2px 6px;');
+console.log('Build time:', '2025-05-08T19:31:05.870Z');
 
 // Utility functions from dom-utils.js
 async function waitForMenu(root = document, timeout = 10000) {
@@ -84,18 +84,26 @@ function openModal(title, images, errorMessage = '') {
   const imageGrid = document.createElement('div');
   imageGrid.className = 'cwph-image-grid cwph-modal-images';
 
-  // Add images
-  images.forEach(img => {
-    const imgEl = document.createElement('img');
-    imgEl.src = img.url || img;
-    imgEl.alt = img.alt || title;
-    imageGrid.appendChild(imgEl);
-  });
+  // Handle empty images array case
+  if (!images || images.length === 0) {
+    const noImagesMessage = document.createElement('p');
+    noImagesMessage.className = 'cwph-no-images';
+    noImagesMessage.textContent = 'No images available for this item.';
+    modalBody.appendChild(noImagesMessage);
+  } else {
+    // Add images
+    images.forEach(img => {
+      const imgEl = document.createElement('img');
+      imgEl.src = img.url || img;
+      imgEl.alt = img.alt || title;
+      imageGrid.appendChild(imgEl);
+    });
 
-  modalBody.appendChild(imageGrid);
+    modalBody.appendChild(imageGrid);
+  }
 
   // Add "See more" link if there are images
-  if (images.length > 0) {
+  if (images && images.length > 0) {
     const seeMoreLink = document.createElement('a');
     seeMoreLink.href = `https://www.google.com/search?q=${encodeURIComponent(title)}&tbm=isch&safe=active`;
     seeMoreLink.className = 'cwph-see-more';
