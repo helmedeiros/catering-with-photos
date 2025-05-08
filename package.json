@@ -10,7 +10,10 @@
     "test:e2e:run": "node --no-warnings --experimental-vm-modules node_modules/jest/bin/jest.js tests/e2e/*.e2e.js --silent",
     "serve": "http-server -p 5050 --silent",
     "serve:5050": "http-server -p 5050 --silent",
-    "serve:5051": "http-server -p 5051 --silent"
+    "serve:5051": "http-server -p 5051 --silent",
+    "prepare-tests": "cp content-script.js content-for-tests.js && node scripts/convert-module.js",
+    "clean-tests": "rm -f content-for-tests.js",
+    "test:with-script": "npm run prepare-tests && npm test && npm run clean-tests"
   },
   "devDependencies": {
     "@babel/core": "^7.27.1",
