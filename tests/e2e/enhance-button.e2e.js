@@ -76,12 +76,18 @@ describe('Enhance Menu Button', () => {
                 const iconSpan = document.createElement('span');
                 iconSpan.className = 'cwph-icon';
                 iconSpan.setAttribute('data-dish', mealNode.textContent.trim());
-                iconSpan.textContent = '🔍';
+                iconSpan.innerHTML = '&#128269;'; // Magnifying glass emoji as HTML entity
+
+                // Create text label
+                const textLabel = document.createElement('span');
+                textLabel.className = 'cwph-icon-label';
+                textLabel.textContent = 'See Dish Photos';
 
                 // Create a wrapper to position the icon next to the meal item instead of inside it
                 const iconWrapper = document.createElement('span');
                 iconWrapper.className = 'cwph-icon-wrapper';
                 iconWrapper.appendChild(iconSpan);
+                iconWrapper.appendChild(textLabel);
 
                 // Insert after the meal node instead of appending as a child
                 mealNode.parentNode.insertBefore(iconWrapper, mealNode.nextSibling);

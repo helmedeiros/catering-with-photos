@@ -2,11 +2,11 @@
 // Import fetchImages from the proper location
 import { fetchImages } from './utils/image-scraper.js';
 // content-script.js - Non-module version of the content script
-// Build: 2025-05-08T21:04:07.637Z
+// Build: 2025-05-08T21:11:28.339Z
 
 // Debug info
-console.log('%c Catering with Photos v1.1.1 ', 'background: #4CAF50; color: white; font-size: 12px; border-radius: 4px; padding: 2px 6px;');
-console.log('Build time:', '2025-05-08T21:04:07.637Z');
+console.log('%c Catering with Photos v1.1.2 ', 'background: #4CAF50; color: white; font-size: 12px; border-radius: 4px; padding: 2px 6px;');
+console.log('Build time:', '2025-05-08T21:11:28.339Z');
 
 // Utility functions from dom-utils.js
 async function waitForMenu(root = document, timeout = 10000) {
@@ -395,12 +395,18 @@ function addImagesToMeals() {
       const iconSpan = document.createElement('span');
       iconSpan.className = 'cwph-icon';
       iconSpan.setAttribute('data-dish', mealNode.textContent.trim());
-      iconSpan.textContent = '🔍';
+      iconSpan.innerHTML = '&#128269;'; // Magnifying glass emoji as HTML entity
+
+      // Create text label
+      const textLabel = document.createElement('span');
+      textLabel.className = 'cwph-icon-label';
+      textLabel.textContent = 'See Dish Photos';
 
       // Create a wrapper to position the icon next to the meal item instead of inside it
       const iconWrapper = document.createElement('span');
       iconWrapper.className = 'cwph-icon-wrapper';
       iconWrapper.appendChild(iconSpan);
+      iconWrapper.appendChild(textLabel);
 
       // Insert after the meal node instead of appending as a child
       mealNode.parentNode.insertBefore(iconWrapper, mealNode.nextSibling);
@@ -441,13 +447,22 @@ function injectButtonStyles() {
       opacity: 1;
     }
 
+    .cwph-icon-label {
+      margin-left: 4px;
+      font-size: 13px;
+      color: #4285f4;
+      font-weight: 500;
+    }
+
     .cwph-icon-wrapper {
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
       margin-left: 8px;
       position: relative;
       z-index: 10; /* Ensure icon is above other elements */
       vertical-align: middle;
       pointer-events: auto; /* Ensure clicks on icon are captured */
+      cursor: pointer;
     }
 
     .cwph-modal {

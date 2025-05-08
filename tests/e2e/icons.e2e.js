@@ -16,6 +16,13 @@ describe('E2E: Icon injection (S2-4)', () => {
     const wrapperCount = await page.$$eval('.cwph-icon-wrapper', nodes => nodes.length);
     expect(wrapperCount).toBe(mealCount);
 
+    // Check that the icon labels exist and have the correct text
+    const labelCount = await page.$$eval('.cwph-icon-label', nodes => nodes.length);
+    expect(labelCount).toBe(mealCount);
+
+    const labelText = await page.$eval('.cwph-icon-label', el => el.textContent);
+    expect(labelText).toBe('See Dish Photos');
+
     // Verify that icons are in wrappers next to meal nodes, not inside meal nodes
     const iconsNotInMeals = await page.$$eval('.meal-name', meals =>
       meals.every(meal => !meal.querySelector('.cwph-icon'))

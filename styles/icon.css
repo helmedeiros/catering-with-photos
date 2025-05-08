@@ -11,12 +11,21 @@
   opacity: 1;
 }
 
+.cwph-icon-label {
+  margin-left: 4px;
+  font-size: 13px;
+  color: #4285f4;
+  font-weight: 500;
+}
+
 /* New styles for the icon wrapper */
 .cwph-icon-wrapper {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   margin-left: 8px;
   position: relative;
   z-index: 10; /* Ensure icon is above other elements */
   vertical-align: middle;
   pointer-events: auto; /* Ensure clicks on icon are captured */
+  cursor: pointer;
 }
