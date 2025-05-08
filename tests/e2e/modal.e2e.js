@@ -236,6 +236,32 @@ describe('Modal E2E Flow', () => {
     expect(bodyStyleAfter).toBe('');
   }, 60000);
 
+  it('opens modal when clicking on the "See Dish Photos" text label', async () => {
+    // Click the "Add Images" button
+    await page.click('#cwph-add');
+
+    // Wait for icons to be injected
+    await page.waitForSelector('.cwph-icon-label', { timeout: 30000 });
+
+    // Click on the "See Dish Photos" text label
+    await page.click('.cwph-icon-label');
+
+    // Wait for modal and verify its contents
+    await page.waitForSelector('.cwph-modal', { visible: true, timeout: 30000 });
+    const modalTitle = await page.$eval('.cwph-modal h2', el => el.textContent);
+    expect(modalTitle).toBeTruthy();
+
+    // Verify modal has images
+    const images = await page.$$('.cwph-image-grid img');
+    expect(images.length).toBeGreaterThan(0);
+
+    // Close the modal
+    await page.click('.cwph-modal-close');
+
+    // Verify modal is removed
+    await page.waitForFunction(() => !document.querySelector('.cwph-modal'), { timeout: 30000 });
+  }, 60000);
+
   it('handles keyboard navigation in modal', async () => {
     // Open modal
     await page.click('#cwph-add');

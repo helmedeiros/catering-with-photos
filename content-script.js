@@ -1,9 +1,9 @@
 // content-script.js - Non-module version of the content script
-// Build: 2025-05-08T21:11:28.339Z
+// Build: 2025-05-08T21:14:48.917Z
 
 // Debug info
-console.log('%c Catering with Photos v1.1.2 ', 'background: #4CAF50; color: white; font-size: 12px; border-radius: 4px; padding: 2px 6px;');
-console.log('Build time:', '2025-05-08T21:11:28.339Z');
+console.log('%c Catering with Photos v1.1.4 ', 'background: #4CAF50; color: white; font-size: 12px; border-radius: 4px; padding: 2px 6px;');
+console.log('Build time:', '2025-05-08T21:14:48.917Z');
 
 // Utility functions from dom-utils.js
 async function waitForMenu(root = document, timeout = 10000) {
@@ -757,9 +757,11 @@ if (document.readyState === 'loading') {
 
 // Add event delegation for icon clicks
 document.body.addEventListener('click', async (event) => {
-  const iconElement = event.target.closest('.cwph-icon');
-  if (iconElement) {
+  // Check if click is on icon wrapper or any of its children
+  const iconWrapper = event.target.closest('.cwph-icon-wrapper');
+  if (iconWrapper) {
     event.stopPropagation(); // Stop event from propagating to parent elements
+    const iconElement = iconWrapper.querySelector('.cwph-icon');
     const dishName = iconElement.getAttribute('data-dish');
     try {
       const images = await fetchImages(dishName);
