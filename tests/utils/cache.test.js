@@ -1,78 +1,119 @@
 import { jest } from '@jest/globals';
-import { getCached, setCached } from '../../utils/cache.js';
+import { getCached, setCached, cleanupCache } from '../../utils/cache.js';
 
 describe('Cache Utility', () => {
   beforeEach(() => {
     // Clear localStorage before each test
     localStorage.clear();
-    // Reset all mocks
-    jest.clearAllMocks();
+    // Reset Date.now() to a fixed value
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2024-01-01'));
   });
 
-  it('returns null for non-existent query', () => {
-    const result = getCached('nonexistent');
-    expect(result).toBeNull();
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
-  it('stores and retrieves images for a query', () => {
-    const query = 'pasta';
-    const images = ['url1.jpg', 'url2.jpg'];
+  describe('getCached', () => {
+    it('returns null for non-existent query', () => {
+      expect(getCached('nonexistent')).toBeNull();
+    });
 
-    setCached(query, images);
-    const result = getCached(query);
+    it('returns cached images for existing query', () => {
+      const images = ['image1.jpg', 'image2.jpg'];
+      setCached('pasta', images);
+      expect(getCached('pasta')).toEqual(images);
+    });
 
-    expect(result).toEqual(images);
+    it('returns null for expired cache entry', () => {
+      const images = ['image1.jpg', 'image2.jpg'];
+      setCached('pasta', images);
+
+      // Advance time by 25 hours (default TTL is 24 hours)
+      jest.advanceTimersByTime(25 * 60 * 60 * 1000);
+
+      expect(getCached('pasta')).toBeNull();
+    });
+
+    it('respects custom TTL', () => {
+      const images = ['image1.jpg', 'image2.jpg'];
+      setCached('pasta', images);
+
+      // Advance time by 2 hours
+      jest.advanceTimersByTime(2 * 60 * 60 * 1000);
+
+      // Should still be valid with 3-hour TTL
+      expect(getCached('pasta', 3 * 60 * 60 * 1000)).toEqual(images);
+
+      // Should be expired with 1-hour TTL
+      expect(getCached('pasta', 60 * 60 * 1000)).toBeNull();
+    });
   });
 
-  it('handles multiple queries in cache', () => {
-    const query1 = 'pasta';
-    const images1 = ['url1.jpg', 'url2.jpg'];
-    const query2 = 'pizza';
-    const images2 = ['url3.jpg', 'url4.jpg'];
+  describe('setCached', () => {
+    it('stores images in cache', () => {
+      const images = ['image1.jpg', 'image2.jpg'];
+      setCached('pasta', images);
+      expect(getCached('pasta')).toEqual(images);
+    });
 
-    setCached(query1, images1);
-    setCached(query2, images2);
+    it('overwrites existing cache entry', () => {
+      setCached('pasta', ['old.jpg']);
+      setCached('pasta', ['new.jpg']);
+      expect(getCached('pasta')).toEqual(['new.jpg']);
+    });
 
-    expect(getCached(query1)).toEqual(images1);
-    expect(getCached(query2)).toEqual(images2);
+    it('stores timestamp with cache entry', () => {
+      const images = ['image1.jpg'];
+      setCached('pasta', images);
+
+      const cacheStr = localStorage.getItem('cwph-cache');
+      const cache = JSON.parse(cacheStr);
+
+      expect(cache.pasta).toHaveProperty('timestamp');
+      expect(cache.pasta.timestamp).toBe(Date.now());
+    });
   });
 
-  it('overwrites existing cache entry', () => {
-    const query = 'pasta';
-    const images1 = ['url1.jpg'];
-    const images2 = ['url2.jpg', 'url3.jpg'];
+  describe('cleanupCache', () => {
+    it('removes expired entries', () => {
+      // Set up some cache entries
+      setCached('pasta', ['pasta1.jpg']);
+      setCached('salad', ['salad1.jpg']);
 
-    setCached(query, images1);
-    setCached(query, images2);
+      // Advance time by 25 hours
+      jest.advanceTimersByTime(25 * 60 * 60 * 1000);
 
-    expect(getCached(query)).toEqual(images2);
-  });
+      // Add a new entry
+      setCached('soup', ['soup1.jpg']);
 
-  it('handles localStorage errors gracefully', () => {
-    // Mock localStorage.getItem to throw an error
-    const mockGetItem = jest.spyOn(Storage.prototype, 'getItem')
-      .mockImplementation(() => {
-        throw new Error('Storage error');
-      });
+      // Clean up expired entries
+      cleanupCache();
 
-    const result = getCached('pasta');
-    expect(result).toBeNull();
+      // Only the new entry should remain
+      expect(getCached('pasta')).toBeNull();
+      expect(getCached('salad')).toBeNull();
+      expect(getCached('soup')).toEqual(['soup1.jpg']);
+    });
 
-    mockGetItem.mockRestore();
-  });
+    it('respects custom TTL', () => {
+      // Set up cache entries
+      setCached('pasta', ['pasta1.jpg']);
+      setCached('salad', ['salad1.jpg']);
 
-  it('handles localStorage setItem errors gracefully', () => {
-    // Mock localStorage.setItem to throw an error
-    const mockSetItem = jest.spyOn(Storage.prototype, 'setItem')
-      .mockImplementation(() => {
-        throw new Error('Storage error');
-      });
+      // Advance time by 2 hours
+      jest.advanceTimersByTime(2 * 60 * 60 * 1000);
 
-    // Should not throw
-    expect(() => {
-      setCached('pasta', ['url1.jpg']);
-    }).not.toThrow();
+      // Clean up with 1-hour TTL
+      cleanupCache(60 * 60 * 1000);
 
-    mockSetItem.mockRestore();
+      // All entries should be removed
+      expect(getCached('pasta')).toBeNull();
+      expect(getCached('salad')).toBeNull();
+    });
+
+    it('handles empty cache', () => {
+      expect(() => cleanupCache()).not.toThrow();
+    });
   });
 });

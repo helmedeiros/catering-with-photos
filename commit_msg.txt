@@ -1,7 +1,0 @@
-refactor: improve test environment setup and mock handling
-
-- Move test data from production code to test files
-- Update test environment setup in E2E tests
-- Fix test environment handling in image scraper
-- Add proper mock image handling in test environment
-- Update tests to match new test environment behavior

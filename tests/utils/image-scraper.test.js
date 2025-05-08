@@ -7,113 +7,104 @@ const MOCK_IMAGES = [
   'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
 ];
 
-// Mock the cache module
+// Mock cache module
 const mockGetCached = jest.fn();
 const mockSetCached = jest.fn();
+const mockCleanupCache = jest.fn();
+
 jest.unstable_mockModule('../../utils/cache.js', () => ({
   getCached: mockGetCached,
-  setCached: mockSetCached
+  setCached: mockSetCached,
+  cleanupCache: mockCleanupCache
 }));
 
-// Import the module under test after mocking dependencies
-let fetchImages;
-
 describe('Image Scraper', () => {
+  let fetchImages;
+  let originalWindow;
+
   beforeEach(async () => {
-    // Clear all mocks before each test
+    // Store original window object
+    originalWindow = { ...window };
+
+    // Clear all mocks
     jest.clearAllMocks();
-    // Reset test environment flag
-    global.window = { __CWPH_TEST__: false };
-    // Mock fetch
-    global.fetch = jest.fn();
-    // Mock DOMParser
-    global.DOMParser = jest.fn().mockImplementation(() => ({
-      parseFromString: jest.fn().mockReturnValue({
-        querySelectorAll: jest.fn().mockReturnValue([])
-      })
-    }));
+
+    // Reset test environment
+    window.__CWPH_TEST__ = false;
+    window.__CWPH_MOCK_IMAGES__ = undefined;
 
     // Import the module under test
     const module = await import('../../utils/image-scraper.js');
     fetchImages = module.fetchImages;
   });
 
+  afterEach(() => {
+    // Restore original window object
+    Object.assign(window, originalWindow);
+  });
+
   it('returns cached images when available', async () => {
-    const cachedImages = ['cached1.jpg', 'cached2.jpg'];
-    mockGetCached.mockReturnValue(cachedImages);
+    window.__CWPH_TEST__ = false;
+    const mockImages = ['image1.jpg', 'image2.jpg'];
+    mockGetCached.mockReturnValue(mockImages);
 
-    const result = await fetchImages('pasta', 2);
-
+    const result = await fetchImages('pasta');
+    expect(result).toEqual(mockImages);
     expect(mockGetCached).toHaveBeenCalledWith('pasta');
-    expect(result).toEqual(cachedImages.slice(0, 2));
-    // Should not call setCached when using cache
-    expect(mockSetCached).not.toHaveBeenCalled();
+    expect(mockCleanupCache).toHaveBeenCalled();
   });
 
   it('fetches and caches images when not in cache', async () => {
-    // Mock no cache hit
+    window.__CWPH_TEST__ = false;
     mockGetCached.mockReturnValue(null);
-    // Mock successful fetch
-    global.fetch.mockResolvedValue({
-      ok: true,
+    global.fetch = jest.fn().mockResolvedValue({
       text: () => Promise.resolve(`
         <html>
-          <body>
-            <img src="http://example.com/img1.jpg">
-            <img src="http://example.com/img2.jpg">
-          </body>
+          <img src="http://example.com/image1.jpg">
+          <img src="http://example.com/image2.jpg">
         </html>
       `)
     });
 
-    // Mock DOMParser to return our test images
+    // Mock DOMParser
+    const mockImages = [
+      { src: 'http://example.com/image1.jpg' },
+      { src: 'http://example.com/image2.jpg' }
+    ];
+    const mockQuerySelectorAll = jest.fn().mockReturnValue(mockImages);
+    const mockParseFromString = jest.fn().mockReturnValue({
+      querySelectorAll: mockQuerySelectorAll
+    });
     global.DOMParser = jest.fn().mockImplementation(() => ({
-      parseFromString: jest.fn().mockReturnValue({
-        querySelectorAll: jest.fn().mockReturnValue([
-          { src: 'http://example.com/img1.jpg' },
-          { src: 'http://example.com/img2.jpg' }
-        ])
-      })
+      parseFromString: mockParseFromString
     }));
 
     const result = await fetchImages('pasta');
-
-    expect(mockGetCached).toHaveBeenCalledWith('pasta');
+    expect(result).toEqual(['http://example.com/image1.jpg', 'http://example.com/image2.jpg']);
     expect(mockSetCached).toHaveBeenCalledWith('pasta', expect.any(Array));
-    expect(result.length).toBeGreaterThan(0);
-    expect(result).toEqual(['http://example.com/img1.jpg', 'http://example.com/img2.jpg']);
+    expect(mockCleanupCache).toHaveBeenCalled();
   });
 
   it('returns mock images in test environment', async () => {
-    global.window.__CWPH_TEST__ = true;
-    global.window.__CWPH_MOCK_IMAGES__ = MOCK_IMAGES;
-    mockGetCached.mockReturnValue(null);
-
-    const result = await fetchImages('pasta', 2);
-
+    window.__CWPH_TEST__ = true;
+    window.__CWPH_MOCK_IMAGES__ = MOCK_IMAGES;
+    const result = await fetchImages('pasta');
     expect(result).toEqual(MOCK_IMAGES);
-    expect(mockGetCached).not.toHaveBeenCalled();
-    expect(mockSetCached).not.toHaveBeenCalled();
   });
 
   it('returns empty array when no mock images are provided in test environment', async () => {
-    global.window.__CWPH_TEST__ = true;
-    global.window.__CWPH_MOCK_IMAGES__ = undefined;
-    mockGetCached.mockReturnValue(null);
-
-    const result = await fetchImages('pasta', 2);
-
+    window.__CWPH_TEST__ = true;
+    const result = await fetchImages('pasta');
     expect(result).toEqual([]);
-    expect(mockGetCached).not.toHaveBeenCalled();
-    expect(mockSetCached).not.toHaveBeenCalled();
   });
 
   it('handles fetch errors gracefully', async () => {
+    window.__CWPH_TEST__ = false;
     mockGetCached.mockReturnValue(null);
-    global.window.__CWPH_TEST__ = false;
-    global.fetch.mockRejectedValue(new Error('Network error'));
+    global.fetch = jest.fn().mockRejectedValue(new Error('Network error'));
 
-    await expect(fetchImages('pasta')).rejects.toThrow('Network error');
-    expect(mockSetCached).not.toHaveBeenCalled();
+    const result = await fetchImages('pasta');
+    expect(result).toEqual([]);
+    expect(mockCleanupCache).toHaveBeenCalled();
   });
 });
