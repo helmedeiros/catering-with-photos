@@ -77,7 +77,14 @@ describe('Enhance Menu Button', () => {
                 iconSpan.className = 'cwph-icon';
                 iconSpan.setAttribute('data-dish', mealNode.textContent.trim());
                 iconSpan.textContent = '🔍';
-                mealNode.appendChild(iconSpan);
+
+                // Create a wrapper to position the icon next to the meal item instead of inside it
+                const iconWrapper = document.createElement('span');
+                iconWrapper.className = 'cwph-icon-wrapper';
+                iconWrapper.appendChild(iconSpan);
+
+                // Insert after the meal node instead of appending as a child
+                mealNode.parentNode.insertBefore(iconWrapper, mealNode.nextSibling);
               }
             });
           });

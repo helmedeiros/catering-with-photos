@@ -2,11 +2,11 @@
 // Import fetchImages from the proper location
 import { fetchImages } from './utils/image-scraper.js';
 // content-script.js - Non-module version of the content script
-// Build: 2025-05-08T20:56:46.464Z
+// Build: 2025-05-08T21:04:07.637Z
 
 // Debug info
-console.log('%c Catering with Photos v1.1.0 ', 'background: #4CAF50; color: white; font-size: 12px; border-radius: 4px; padding: 2px 6px;');
-console.log('Build time:', '2025-05-08T20:56:46.464Z');
+console.log('%c Catering with Photos v1.1.1 ', 'background: #4CAF50; color: white; font-size: 12px; border-radius: 4px; padding: 2px 6px;');
+console.log('Build time:', '2025-05-08T21:04:07.637Z');
 
 // Utility functions from dom-utils.js
 async function waitForMenu(root = document, timeout = 10000) {
@@ -396,7 +396,15 @@ function addImagesToMeals() {
       iconSpan.className = 'cwph-icon';
       iconSpan.setAttribute('data-dish', mealNode.textContent.trim());
       iconSpan.textContent = '🔍';
-      mealNode.appendChild(iconSpan);
+
+      // Create a wrapper to position the icon next to the meal item instead of inside it
+      const iconWrapper = document.createElement('span');
+      iconWrapper.className = 'cwph-icon-wrapper';
+      iconWrapper.appendChild(iconSpan);
+
+      // Insert after the meal node instead of appending as a child
+      mealNode.parentNode.insertBefore(iconWrapper, mealNode.nextSibling);
+
       console.log('Added icon to:', mealNode.textContent.trim());
     }
   });
@@ -424,6 +432,22 @@ function injectButtonStyles() {
       margin-left: 5px;
       cursor: pointer;
       display: inline-block;
+      font-size: 14px;
+      opacity: 0.8;
+      transition: opacity 0.2s;
+    }
+
+    .cwph-icon:hover {
+      opacity: 1;
+    }
+
+    .cwph-icon-wrapper {
+      display: inline-block;
+      margin-left: 8px;
+      position: relative;
+      z-index: 10; /* Ensure icon is above other elements */
+      vertical-align: middle;
+      pointer-events: auto; /* Ensure clicks on icon are captured */
     }
 
     .cwph-modal {
@@ -622,6 +646,7 @@ if (document.readyState === 'loading') {
 document.body.addEventListener('click', async (event) => {
   const iconElement = event.target.closest('.cwph-icon');
   if (iconElement) {
+    event.stopPropagation(); // Stop event from propagating to parent elements
     const dishName = iconElement.getAttribute('data-dish');
     try {
       const images = await fetchImages(dishName);
