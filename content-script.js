@@ -1,6 +1,3 @@
-
-// Import fetchImages from the proper location
-import { fetchImages } from './utils/image-scraper.js';
 // content-script.js - Non-module version of the content script
 // Build: 2025-05-08T21:21:34.122Z
 
@@ -179,6 +176,107 @@ function closeModal() {
 }
 
 // Improved image scraper function
+async function fetchImages(query) {
+  try {
+    // Check cache first
+    const cachedImages = getCachedImages(query);
+    if (cachedImages) {
+      console.log('Using cached images for:', query);
+      return cachedImages;
+    }
+
+    console.log('Fetching images for:', query);
+
+    // Try to fetch from Google Images
+    const images = [];
+
+    // Build the Google Images search URL - use a simpler URL format
+    const searchUrl = 'https://www.google.com/search?tbm=isch&q=' +
+                     encodeURIComponent(query + ' food');
+
+    // Try to fetch HTML content and extract image URLs
+    let htmlContent = null;
+
+    try {
+      // Skip direct fetch and go straight to proxy for Google searches
+      console.log('Using proxy for Google search');
+
+      // Use the background script proxy
+      const proxyResponse = await new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage(
+          {
+            type: 'PROXY_REQUEST',
+            url: searchUrl,
+            options: {
+              method: 'GET',
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+              }
+            }
+          },
+          response => {
+            if (chrome.runtime.lastError) {
+              return reject(new Error(chrome.runtime.lastError.message));
+            }
+
+            if (!response || !response.success) {
+              return reject(new Error(response?.error || 'Proxy request failed'));
+            }
+
+            resolve(response.data);
+          }
+        );
+      });
+
+      if (proxyResponse && proxyResponse.text) {
+        htmlContent = proxyResponse.text;
+        console.log('Successfully received HTML content from proxy');
+      }
+    } catch (proxyError) {
+      console.error('Proxy fetch also failed:', proxyError);
+    }
+
+    // Extract image URLs from HTML if we got any
+    if (htmlContent) {
+      // Look for image URLs in the HTML using regex patterns
+      const extractedUrls = extractImageUrls(htmlContent);
+
+      if (extractedUrls.length > 0) {
+        for (const url of extractedUrls.slice(0, 5)) {
+          images.push({ url, alt: query });
+        }
+      }
+    }
+
+    // If no images found, use fallback URLs
+    if (images.length === 0) {
+      console.log('No images found, using fallback images');
+      const fallbackUrls = [
+        'https://source.unsplash.com/random/300x300?food',
+        'https://source.unsplash.com/featured/?food',
+        'https://images.unsplash.com/photo-1504674900247-0877df9cc836',
+        'https://images.unsplash.com/photo-1555939594-58d7cb561ad1',
+        'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe'
+      ];
+
+      for (let i = 0; i < 3; i++) {
+        images.push({ url: fallbackUrls[i % fallbackUrls.length], alt: query });
+      }
+    }
+
+    // Save to cache if we have images
+    if (images.length > 0) {
+      setCachedImages(query, images);
+    }
+
+    return images;
+  } catch (error) {
+    console.error('Error fetching images:', error);
+    return [];
+  }
+}
+
+// Helper function to extract image URLs from Google search results
 function extractImageUrls(html) {
   const imageUrls = [];
 
@@ -728,16 +826,3 @@ if (typeof chrome !== 'undefined' && chrome.runtime) {
     return true; // Required for async sendResponse
   });
 }
-
-// Export functions for testing
-export {
-  injectAddImagesButton,
-  injectButtonStyles,
-  enhanceMenu,
-  handleSearch,
-  addImagesToMeals,
-  openModal,
-  closeModal,
-  fetchImages,
-  waitForMenu
-};

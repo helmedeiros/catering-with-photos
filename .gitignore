@@ -51,3 +51,4 @@ commit_msg.txt
 *_commit_message.txt
 commit_*.txt
 temp_*_commit*.txt
+content-for-tests.js
