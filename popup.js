@@ -130,8 +130,23 @@ async function enhanceMenu() {
       return;
     }
 
-    // Send ENHANCE message to content script
-    await chrome.tabs.sendMessage(tab.id, { type: 'ENHANCE' });
+    // Add try-catch to handle specific connection errors
+    try {
+      // Send ENHANCE message to content script
+      await chrome.tabs.sendMessage(tab.id, { type: 'ENHANCE' });
+      console.log('Enhance menu message sent successfully');
+    } catch (connectionError) {
+      console.error('Connection error:', connectionError);
+
+      // Show an alert to the user
+      alert('Cannot enhance menu: Make sure you are on a supported page (Z-Catering menu)');
+
+      // Don't close the popup on error so user can see the message
+      return;
+    }
+
+    // Close popup after successful action
+    window.close();
   } catch (error) {
     console.error('Error enhancing menu:', error);
   }
@@ -211,7 +226,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const enhanceButton = document.getElementById('enhance-button');
     enhanceButton.addEventListener('click', async () => {
       await enhanceMenu();
-      window.close(); // Close popup after action
     });
 
   } catch (error) {

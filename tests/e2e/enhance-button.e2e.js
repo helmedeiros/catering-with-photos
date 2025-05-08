@@ -60,7 +60,7 @@ describe('Enhance Menu Button', () => {
         }
       };
 
-      // Add the injectAddImagesButton function
+      // Add the injectAddImagesButton function - matches implementation in content-script.js
       window.injectAddImagesButton = () => {
         const topBar = document.querySelector('.sc-d-date-picker');
         if (topBar && !document.getElementById('cwph-add')) {
@@ -68,14 +68,34 @@ describe('Enhance Menu Button', () => {
           btn.id = 'cwph-add';
           btn.textContent = 'Add Images';
           topBar.appendChild(btn);
+          btn.addEventListener('click', () => {
+            // Simplified version of addImagesToMeals for testing
+            const mealNodes = document.querySelectorAll('.meal-name');
+            mealNodes.forEach(mealNode => {
+              if (!mealNode.querySelector('.cwph-icon')) {
+                const iconSpan = document.createElement('span');
+                iconSpan.className = 'cwph-icon';
+                iconSpan.setAttribute('data-dish', mealNode.textContent.trim());
+                iconSpan.textContent = '🔍';
+                mealNode.appendChild(iconSpan);
+              }
+            });
+          });
+          return true;
         }
+        return false;
+      };
+
+      // Basic implementation of enhanceMenu for testing
+      window.enhanceMenu = () => {
+        window.injectAddImagesButton();
       };
 
       // Set up a message listener that simulates our content script
       if (window.chrome && window.chrome.runtime) {
         window.chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           if (message.type === 'ENHANCE') {
-            window.injectAddImagesButton();
+            window.enhanceMenu();
             sendResponse({ success: true });
           }
           return true;
