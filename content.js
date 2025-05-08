@@ -67,6 +67,27 @@ export async function enhanceMenu() {
   }
 }
 
+/**
+ * Handles a manual search request by finding and displaying images
+ * @param {string} query - The search query
+ */
+export async function handleSearch(query) {
+  if (!query || !query.trim()) {
+    return;
+  }
+
+  try {
+    const images = await fetchImages(query);
+    if (images.length === 0) {
+      openModal(query, [], 'No images found for this search term.');
+    } else {
+      openModal(query, images);
+    }
+  } catch (error) {
+    openModal(query, [], 'Unable to load images. Please check your internet connection and try again.');
+  }
+}
+
 // For extension use, auto-run
 if (typeof window !== 'undefined' && !window.__CWPH_TEST__) {
   enhanceMenu();
@@ -104,3 +125,14 @@ document.addEventListener('cwph-retry', async (event) => {
     openModal(title, [], 'Unable to load images. Please check your internet connection and try again.');
   }
 });
+
+// Listen for messages from popup
+if (typeof chrome !== 'undefined' && chrome.runtime) {
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === 'SEARCH' && message.query) {
+      handleSearch(message.query);
+      sendResponse({ success: true });
+    }
+    return true; // Required for async sendResponse
+  });
+}

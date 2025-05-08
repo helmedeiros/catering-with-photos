@@ -24,6 +24,38 @@ async function loadHistory() {
 }
 
 /**
+ * Saves a search term to history
+ * @param {string} query - The search query to save
+ * @returns {Promise<void>}
+ */
+async function saveToHistory(query) {
+  // Don't save empty queries
+  if (!query.trim()) {
+    return;
+  }
+
+  // Load current history
+  const history = await loadHistory();
+
+  // Remove the query if it already exists (to avoid duplicates)
+  const filteredHistory = history.filter(item => item !== query);
+
+  // Add the new query to the beginning
+  const updatedHistory = [query, ...filteredHistory].slice(0, 10); // Keep only 10 most recent
+
+  // Save back to storage
+  return new Promise((resolve) => {
+    chrome.storage.local.set({ [HISTORY_KEY]: updatedHistory }, () => {
+      // Update our local state
+      searchHistory = updatedHistory;
+      // Re-render the history list
+      renderHistory(searchHistory);
+      resolve();
+    });
+  });
+}
+
+/**
  * Renders the search history in the history list
  * @param {Array} history - Array of search terms to display
  */
@@ -50,9 +82,39 @@ function renderHistory(history) {
     listItem.addEventListener('click', () => {
       // Set the search input value to the clicked history item
       document.getElementById('search-input').value = item;
+      // Perform search with this item
+      performSearch(item);
     });
     historyList.appendChild(listItem);
   });
+}
+
+/**
+ * Performs a search by sending a message to the content script
+ * @param {string} query - The search query
+ * @returns {Promise<void>}
+ */
+async function performSearch(query) {
+  if (!query.trim()) {
+    return;
+  }
+
+  try {
+    // Get the active tab
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab) {
+      console.error('No active tab found');
+      return;
+    }
+
+    // Send message to content script
+    await chrome.tabs.sendMessage(tab.id, { type: 'SEARCH', query });
+
+    // Save to history
+    await saveToHistory(query);
+  } catch (error) {
+    console.error('Error performing search:', error);
+  }
 }
 
 /**
@@ -113,8 +175,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       // In future tasks, we'll add code to update UI text based on language
     });
 
-    // For now, we're not implementing form submission or enhance button
-    // This will be done in S6-3 and S6-4
+    // Set up search form submission
+    const searchForm = document.getElementById('search-form');
+    searchForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const input = document.getElementById('search-input');
+      const query = input.value.trim();
+
+      if (query) {
+        await performSearch(query);
+      }
+    });
 
   } catch (error) {
     console.error('Error initializing popup:', error);

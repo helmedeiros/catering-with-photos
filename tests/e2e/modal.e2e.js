@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import http from 'http';
 import { setupTestEnvironment, MOCK_IMAGES } from '../utils/test-env.js';
+import { setupE2ETestEnvironment } from '../utils/e2e-test-setup.js';
 
 describe('Modal E2E Flow', () => {
   let browser;
@@ -99,6 +100,25 @@ describe('Modal E2E Flow', () => {
     // Set up test environment flag and mock data BEFORE loading the page
     await page.evaluateOnNewDocument((mockImages) => {
       setupTestEnvironment(window, { mockImages });
+      // Also set up E2E test environment
+      if (typeof setupE2ETestEnvironment === 'function') {
+        setupE2ETestEnvironment(window);
+      } else {
+        // Fallback if the import fails
+        window.__CWPH_TEST__ = true;
+        // Mock chrome API
+        if (!window.chrome) window.chrome = {};
+        if (!window.chrome.runtime) {
+          window.chrome.runtime = {
+            onMessage: {
+              addListener: function(callback) {
+                window.__messageListeners = window.__messageListeners || [];
+                window.__messageListeners.push(callback);
+              }
+            }
+          };
+        }
+      }
     }, MOCK_IMAGES);
 
     // Block all Google requests
@@ -124,7 +144,8 @@ describe('Modal E2E Flow', () => {
         '/utils/image-scraper.js',
         '/components/modal.js',
         '/content.js',
-        '/tests/utils/test-env.js'
+        '/tests/utils/test-env.js',
+        '/tests/utils/e2e-test-setup.js'
       ];
 
       return Promise.all(scripts.map(src => {
@@ -143,19 +164,29 @@ describe('Modal E2E Flow', () => {
     await page.evaluate((mockImages) => {
       window.__CWPH_TEST__ = true;
       window.__CWPH_MOCK_IMAGES__ = mockImages;
+
+      // Ensure enhanceMenu is globally available
+      if (typeof window.setupE2ETestEnvironment === 'function') {
+        window.setupE2ETestEnvironment(window);
+      }
     }, MOCK_IMAGES);
 
-    // Call enhanceMenu() and wait for it to complete
-    await page.addScriptTag({
-      type: 'module',
-      content: `
-        import { enhanceMenu } from '/content.js';
-        window.enhanceMenu = enhanceMenu;
-      `
-    });
-
-    await page.evaluate(() => {
-      window.enhanceMenu();
+    // Ensure enhanceMenu is available and call it
+    await page.evaluate(async () => {
+      if (window.ensureEnhanceMenuAvailable) {
+        const enhanceMenu = await window.ensureEnhanceMenuAvailable();
+        if (enhanceMenu) {
+          return enhanceMenu();
+        }
+      } else if (window.enhanceMenu) {
+        return window.enhanceMenu();
+      } else {
+        // Fallback if nothing else works
+        console.warn('Using direct import for enhanceMenu');
+        const module = await import('/content.js');
+        window.enhanceMenu = module.enhanceMenu;
+        return window.enhanceMenu();
+      }
     });
 
     // Wait for the button to be injected with a more specific selector
@@ -226,9 +257,27 @@ describe('Modal E2E Flow', () => {
   }, 60000);
 
   test('should have working "See more on Google" link', async () => {
-    // Set up test environment flag and mock data BEFORE loading the page
+    // Set up test environment with proper mocks
     await page.evaluateOnNewDocument((mockImages) => {
       setupTestEnvironment(window, { mockImages });
+      // Also set up E2E test environment
+      if (typeof setupE2ETestEnvironment === 'function') {
+        setupE2ETestEnvironment(window);
+      } else {
+        window.__CWPH_TEST__ = true;
+        // Mock chrome API
+        if (!window.chrome) window.chrome = {};
+        if (!window.chrome.runtime) {
+          window.chrome.runtime = {
+            onMessage: {
+              addListener: function(callback) {
+                window.__messageListeners = window.__messageListeners || [];
+                window.__messageListeners.push(callback);
+              }
+            }
+          };
+        }
+      }
     }, MOCK_IMAGES);
 
     await page.goto(`http://localhost:${PORT}/fixtures/menu.html`, {
@@ -242,7 +291,9 @@ describe('Modal E2E Flow', () => {
         '/utils/dom-utils.js',
         '/utils/image-scraper.js',
         '/components/modal.js',
-        '/content.js'
+        '/content.js',
+        '/tests/utils/test-env.js',
+        '/tests/utils/e2e-test-setup.js'
       ];
 
       return Promise.all(scripts.map(src => {
@@ -257,17 +308,22 @@ describe('Modal E2E Flow', () => {
       }));
     });
 
-    // Call enhanceMenu() and wait for it to complete
-    await page.addScriptTag({
-      type: 'module',
-      content: `
-        import { enhanceMenu } from '/content.js';
-        window.enhanceMenu = enhanceMenu;
-      `
-    });
-
-    await page.evaluate(() => {
-      window.enhanceMenu();
+    // Ensure enhanceMenu is available and call it
+    await page.evaluate(async () => {
+      if (window.ensureEnhanceMenuAvailable) {
+        const enhanceMenu = await window.ensureEnhanceMenuAvailable();
+        if (enhanceMenu) {
+          return enhanceMenu();
+        }
+      } else if (window.enhanceMenu) {
+        return window.enhanceMenu();
+      } else {
+        // Fallback if nothing else works
+        console.warn('Using direct import for enhanceMenu');
+        const module = await import('/content.js');
+        window.enhanceMenu = module.enhanceMenu;
+        return window.enhanceMenu();
+      }
     });
 
     // Wait for the add button to be visible and click it
