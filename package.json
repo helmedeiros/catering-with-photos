@@ -1,6 +1,6 @@
 {
   "name": "catering-with-photos",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Chrome extension that enhances Z-Catering menu with food images",
   "type": "module",
   "scripts": {
@@ -13,7 +13,10 @@
     "serve:5051": "http-server -p 5051 --silent",
     "prepare-tests": "cp content-script.js content-for-tests.js && node scripts/convert-module.js",
     "clean-tests": "rm -f content-for-tests.js",
-    "test:with-script": "npm run prepare-tests && npm test && npm run clean-tests"
+    "test:with-script": "npm run prepare-tests && npm test && npm run clean-tests",
+    "build": "node scripts/build.js",
+    "zip": "zip -r catering-with-photos-v$(node -p \"require('./manifest.json').version\").zip . -x \"*.git*\" \"*node_modules*\" \"*.zip\" \"*test*\" \"*scripts*\"",
+    "package": "npm run build && npm run zip"
   },
   "devDependencies": {
     "@babel/core": "^7.27.1",
