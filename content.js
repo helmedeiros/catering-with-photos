@@ -132,6 +132,10 @@ if (typeof chrome !== 'undefined' && chrome.runtime) {
     if (message.type === 'SEARCH' && message.query) {
       handleSearch(message.query);
       sendResponse({ success: true });
+    } else if (message.type === 'ENHANCE') {
+      // Call the enhanceMenu function when receiving the ENHANCE message
+      injectAddImagesButton();
+      sendResponse({ success: true });
     }
     return true; // Required for async sendResponse
   });
