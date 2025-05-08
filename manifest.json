@@ -9,8 +9,12 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://bestellung.z-catering.de/*"],
-      "js": ["content.js"]
+      "matches": [
+        "https://bestellung.z-catering.de/*",
+        "http://localhost:*/*",
+        "<all_urls>"
+      ],
+      "js": ["content-script.js"]
     }
   ]
 }
