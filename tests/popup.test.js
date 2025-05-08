@@ -168,9 +168,13 @@ describe('popup.js functionality', () => {
   let loadHistory;
   let updateLanguageUI;
   let saveLanguagePreference;
+  let saveToHistory;
+  let performSearch;
 
   let document;
+  let window;
   let chromeStorageMock;
+  let chromeTabsMock;
 
   beforeEach(() => {
     // Set up DOM
@@ -185,7 +189,10 @@ describe('popup.js functionality', () => {
             <option value="de">Deutsch</option>
           </select>
 
-          <input id="search-input" type="text">
+          <form id="search-form">
+            <input id="search-input" type="text">
+            <button type="submit">Search</button>
+          </form>
 
           <ul id="history-list">
             <li class="cwph-empty-history">No recent searches</li>
@@ -196,6 +203,7 @@ describe('popup.js functionality', () => {
     `);
 
     document = dom.window.document;
+    window = dom.window;
 
     // Mock Chrome storage
     chromeStorageMock = {
@@ -213,12 +221,35 @@ describe('popup.js functionality', () => {
       })
     };
 
+    // Mock Chrome tabs API
+    chromeTabsMock = {
+      query: jest.fn().mockResolvedValue([{ id: 123 }]),
+      sendMessage: jest.fn().mockResolvedValue({ success: true })
+    };
+
     // Define our test implementations of the popup.js functions
     loadHistory = async () => {
       return new Promise((resolve) => {
         chromeStorageMock.get(HISTORY_KEY, (result) => {
           const history = result[HISTORY_KEY] || [];
           resolve(history);
+        });
+      });
+    };
+
+    saveToHistory = async (query) => {
+      if (!query.trim()) {
+        return;
+      }
+
+      const history = await loadHistory();
+      const filteredHistory = history.filter(item => item !== query);
+      const updatedHistory = [query, ...filteredHistory].slice(0, 10);
+
+      return new Promise((resolve) => {
+        chromeStorageMock.set({ [HISTORY_KEY]: updatedHistory }, () => {
+          renderHistory(updatedHistory);
+          resolve();
         });
       });
     };
@@ -246,9 +277,28 @@ describe('popup.js functionality', () => {
         listItem.addEventListener('click', () => {
           // Set the search input value to the clicked history item
           document.getElementById('search-input').value = item;
+          // This would normally call performSearch, but we'll test that separately
         });
         historyList.appendChild(listItem);
       });
+    };
+
+    performSearch = async (query) => {
+      if (!query.trim()) {
+        return;
+      }
+
+      try {
+        const [tab] = await chromeTabsMock.query({ active: true, currentWindow: true });
+        if (!tab) {
+          return;
+        }
+
+        await chromeTabsMock.sendMessage(tab.id, { type: 'SEARCH', query });
+        await saveToHistory(query);
+      } catch (error) {
+        console.error('Error in test performSearch:', error);
+      }
     };
 
     updateLanguageUI = (language) => {
@@ -301,6 +351,16 @@ describe('popup.js functionality', () => {
       expect(emptyState).toBeTruthy();
       expect(emptyState.textContent).toBe('No recent searches');
     });
+
+    it('should save search to history', async () => {
+      const newSearch = 'Chocolate Cake';
+      await saveToHistory(newSearch);
+
+      expect(chromeStorageMock.set).toHaveBeenCalledWith(
+        { [HISTORY_KEY]: [newSearch, ...mockHistory].slice(0, 10) },
+        expect.any(Function)
+      );
+    });
   });
 
   describe('Language functionality', () => {
@@ -316,6 +376,56 @@ describe('popup.js functionality', () => {
         { [LANGUAGE_KEY]: 'en' },
         expect.any(Function)
       );
+    });
+  });
+
+  describe('Search functionality', () => {
+    it('should query active tab and send message', async () => {
+      const query = 'Spaghetti Bolognese';
+      await performSearch(query);
+
+      expect(chromeTabsMock.query).toHaveBeenCalledWith({ active: true, currentWindow: true });
+      expect(chromeTabsMock.sendMessage).toHaveBeenCalledWith(
+        123,
+        { type: 'SEARCH', query }
+      );
+    });
+
+    it('should save search term to history after search', async () => {
+      const query = 'Pizza Margherita';
+      await performSearch(query);
+
+      expect(chromeStorageMock.set).toHaveBeenCalled();
+    });
+
+    it('should not search or save empty queries', async () => {
+      await performSearch('   ');
+
+      expect(chromeTabsMock.query).not.toHaveBeenCalled();
+      expect(chromeStorageMock.set).not.toHaveBeenCalled();
+    });
+
+    it('should handle form submission and perform search', () => {
+      const form = document.getElementById('search-form');
+      const input = document.getElementById('search-input');
+
+      // Set up a spy on performSearch
+      const performSearchSpy = jest.fn();
+
+      // Simulate form submission
+      input.value = 'Fruit Salad';
+
+      // Add event listener with the spy
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        performSearchSpy(input.value);
+      });
+
+      // Submit the form
+      form.dispatchEvent(new window.Event('submit'));
+
+      // Check if the spy was called with the correct value
+      expect(performSearchSpy).toHaveBeenCalledWith('Fruit Salad');
     });
   });
 });

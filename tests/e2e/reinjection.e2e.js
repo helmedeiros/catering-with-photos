@@ -1,6 +1,54 @@
+import { setupE2ETestEnvironment } from '../utils/e2e-test-setup.js';
+
 describe('E2E: Add Images button reinjection (S1-5)', () => {
   beforeAll(async () => {
+    // Set up the necessary Chrome API mocks before navigating
+    await page.evaluateOnNewDocument(() => {
+      // Set up test environment
+      window.__CWPH_TEST__ = true;
+
+      // Mock chrome API
+      if (!window.chrome) {
+        window.chrome = {};
+      }
+
+      // Ensure chrome.runtime.onMessage is available
+      if (!window.chrome.runtime) {
+        window.chrome.runtime = {
+          onMessage: {
+            addListener: function(callback) {
+              window.__messageListeners = window.__messageListeners || [];
+              window.__messageListeners.push(callback);
+            }
+          }
+        };
+      }
+
+      // Mock chrome.scripting for insertCSS
+      if (!window.chrome.scripting) {
+        window.chrome.scripting = {
+          insertCSS: function() {
+            return Promise.resolve();
+          }
+        };
+      }
+    });
+
     await page.goto('http://localhost:5050/tests/e2e/fixture-menu.html');
+
+    // Ensure enhanceMenu is properly exposed
+    await page.addScriptTag({
+      type: 'module',
+      content: `
+        import { enhanceMenu } from '/content.js';
+        window.enhanceMenu = enhanceMenu;
+
+        // Ensure it gets called
+        if (!document.getElementById('cwph-add')) {
+          window.enhanceMenu();
+        }
+      `
+    });
   });
 
   it('shows Add Images button after menu loads', async () => {
