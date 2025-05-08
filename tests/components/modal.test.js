@@ -17,10 +17,21 @@ describe('Modal Component', () => {
     expect(modal).toBeTruthy();
     expect(modal.querySelector('h2').textContent).toBe('Test Title');
 
+    // Check image wrappers
+    const imageWrappers = modal.querySelectorAll('.cwph-image-wrapper');
+    expect(imageWrappers.length).toBe(2);
+
+    // Check images
     const images = modal.querySelectorAll('img');
     expect(images.length).toBe(2);
-    expect(images[0].src).toContain('img1.jpg');
-    expect(images[1].src).toContain('img2.jpg');
+    expect(images[0].src).toBeTruthy();
+    expect(images[0].alt).toContain('Test Title');
+    expect(images[1].src).toBeTruthy();
+    expect(images[1].alt).toContain('Test Title');
+
+    // Check loading indicators
+    const loaders = modal.querySelectorAll('.cwph-image-loader');
+    expect(loaders.length).toBe(2);
   });
 
   it('removes modal when closed', () => {
@@ -50,7 +61,9 @@ describe('Modal Component', () => {
     const modal = document.querySelector('.cwph-modal');
     expect(modal).toBeTruthy();
     expect(modal.querySelector('.cwph-modal-error')).toBeFalsy();
-    expect(modal.querySelectorAll('img').length).toBe(0);
+    const message = modal.querySelector('.cwph-modal-message');
+    expect(message).toBeTruthy();
+    expect(message.textContent).toContain('No images available');
   });
 
   it('sets ARIA attributes correctly', () => {
@@ -63,7 +76,6 @@ describe('Modal Component', () => {
   });
 
   it('focuses close button on open and restores focus on close', () => {
-    // Create a button and focus it
     const btn = document.createElement('button');
     document.body.appendChild(btn);
     btn.focus();

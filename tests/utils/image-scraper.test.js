@@ -7,6 +7,11 @@ const MOCK_IMAGES = [
   'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
 ];
 
+// Mock Foodish API response
+const MOCK_FOODISH_RESPONSE = {
+  image: 'https://foodish-api.herokuapp.com/images/biryani/biryani10.jpg'
+};
+
 // Mock cache module
 const mockGetCached = jest.fn();
 const mockSetCached = jest.fn();
@@ -21,15 +26,19 @@ jest.unstable_mockModule('../../utils/cache.js', () => ({
 describe('Image Scraper', () => {
   let fetchImages;
   let originalWindow;
-  let originalMath;
+  let originalFetch;
 
   beforeEach(async () => {
-    // Store original window object and Math.random
+    // Store original window and fetch
     originalWindow = { ...window };
-    originalMath = Math.random;
+    originalFetch = global.fetch;
 
-    // Mock Math.random to return predictable values
-    Math.random = jest.fn().mockReturnValue(0.5);
+    // Mock fetch
+    global.fetch = jest.fn().mockImplementation(() =>
+      Promise.resolve({
+        json: () => Promise.resolve(MOCK_FOODISH_RESPONSE)
+      })
+    );
 
     // Clear all mocks
     jest.clearAllMocks();
@@ -44,9 +53,9 @@ describe('Image Scraper', () => {
   });
 
   afterEach(() => {
-    // Restore original window object and Math.random
+    // Restore original window and fetch
     Object.assign(window, originalWindow);
-    Math.random = originalMath;
+    global.fetch = originalFetch;
   });
 
   it('returns cached images when available', async () => {
@@ -58,24 +67,24 @@ describe('Image Scraper', () => {
     expect(result).toEqual(mockImages);
     expect(mockGetCached).toHaveBeenCalledWith('pasta');
     expect(mockCleanupCache).toHaveBeenCalled();
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  it('fetches and caches images when not in cache', async () => {
+  it('fetches and caches images from Foodish API when not in cache', async () => {
     window.__CWPH_TEST__ = false;
     mockGetCached.mockReturnValue(null);
 
-    // With our new implementation, expect Unsplash URLs to be generated
-    const expectedImages = Array(5).fill(0).map((_, i) =>
-      `https://source.unsplash.com/featured/?pasta&sig=500`
-    );
+    const result = await fetchImages('pasta', 3);
 
-    const result = await fetchImages('pasta');
+    // Should make 3 API calls
+    expect(global.fetch).toHaveBeenCalledTimes(3);
+    expect(global.fetch).toHaveBeenCalledWith('https://foodish-api.herokuapp.com/api');
 
-    // Check that the result contains the expected number of Unsplash URLs
-    expect(result.length).toBe(5);
-    expect(result[0]).toMatch(/^https:\/\/source\.unsplash\.com\/featured\/\?pasta&sig=\d+$/);
+    // Should return 3 image URLs
+    expect(result.length).toBe(3);
+    expect(result[0]).toBe(MOCK_FOODISH_RESPONSE.image);
 
-    // Verify setCached was called with the same data
+    // Should cache the results
     expect(mockSetCached).toHaveBeenCalledWith(
       'pasta',
       result,
@@ -89,25 +98,41 @@ describe('Image Scraper', () => {
     window.__CWPH_MOCK_IMAGES__ = MOCK_IMAGES;
     const result = await fetchImages('pasta');
     expect(result).toEqual(MOCK_IMAGES);
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 
   it('returns empty array when no mock images are provided in test environment', async () => {
     window.__CWPH_TEST__ = true;
     const result = await fetchImages('pasta');
     expect(result).toEqual([]);
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  it('handles fetch errors gracefully', async () => {
+  it('handles fetch errors gracefully and falls back to default images', async () => {
     window.__CWPH_TEST__ = false;
     mockGetCached.mockReturnValue(null);
 
-    // The current implementation doesn't rely on fetch anymore,
-    // so we're just testing the normal operation even with an error
-    const result = await fetchImages('pasta');
+    // Mock fetch to fail
+    global.fetch.mockRejectedValue(new Error('Network error'));
 
-    // Expect array with 5 Unsplash URLs
-    expect(result.length).toBe(5);
-    expect(result[0]).toMatch(/^https:\/\/source\.unsplash\.com\/featured\/\?pasta&sig=\d+$/);
-    expect(mockCleanupCache).toHaveBeenCalled();
+    // Spy on console.warn
+    const originalConsoleWarn = console.warn;
+    const originalConsoleError = console.error;
+    console.warn = jest.fn();
+    console.error = jest.fn();
+
+    try {
+      const result = await fetchImages('pasta');
+
+      // Should still return images (fallback)
+      expect(result.length).toBeGreaterThan(0);
+      // Should warn about the failure
+      expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('falling back to default images'));
+      // Should cache the fallback images
+      expect(mockSetCached).toHaveBeenCalled();
+    } finally {
+      console.warn = originalConsoleWarn;
+      console.error = originalConsoleError;
+    }
   });
 });
