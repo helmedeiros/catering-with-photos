@@ -3,6 +3,9 @@
  * Handles history loading and language preferences
  */
 
+// Import cache utilities
+import { clearCache } from './utils/cache.js';
+
 // Constants for storage keys
 const HISTORY_KEY = 'cwph-history';
 const LANGUAGE_KEY = 'cwph-language';
@@ -191,6 +194,26 @@ async function saveLanguagePreference(language) {
   });
 }
 
+/**
+ * Clears all cached images data and shows a confirmation
+ */
+async function clearImageCache() {
+  try {
+    // Clear the cache
+    const success = clearCache();
+
+    if (success) {
+      // Show confirmation to the user
+      alert('Image cache cleared successfully!');
+    } else {
+      alert('Failed to clear image cache. Please try again.');
+    }
+  } catch (error) {
+    console.error('Error clearing cache:', error);
+    alert('An error occurred while clearing the cache.');
+  }
+}
+
 // Initialize popup when DOM content is loaded
 document.addEventListener('DOMContentLoaded', async () => {
   try {
@@ -226,6 +249,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const enhanceButton = document.getElementById('enhance-button');
     enhanceButton.addEventListener('click', async () => {
       await enhanceMenu();
+    });
+
+    // Set up clear cache button
+    const clearCacheButton = document.getElementById('clear-cache-button');
+    clearCacheButton.addEventListener('click', async () => {
+      await clearImageCache();
     });
 
   } catch (error) {
