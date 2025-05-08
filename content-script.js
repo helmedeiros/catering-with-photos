@@ -1,7 +1,9 @@
 // content-script.js - Non-module version of the content script
+// Build: 2025-05-08T19:24:59.182Z
 
 // Debug info
-console.log('Catering with Photos extension loaded');
+console.log('%c Catering with Photos v1.0.1 ', 'background: #4CAF50; color: white; font-size: 12px; border-radius: 4px; padding: 2px 6px;');
+console.log('Build time:', '2025-05-08T19:24:59.182Z');
 
 // Utility functions from dom-utils.js
 async function waitForMenu(root = document, timeout = 10000) {
