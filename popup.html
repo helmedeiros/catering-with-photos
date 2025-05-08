@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Catering with Photos</title>
+  <link rel="stylesheet" href="styles/popup.css">
+</head>
+<body>
+  <div class="cwph-popup">
+    <header>
+      <h1>Catering with Photos</h1>
+      <div class="cwph-lang-selector">
+        <select id="language-select">
+          <option value="en">English</option>
+          <option value="de">Deutsch</option>
+        </select>
+      </div>
+    </header>
+
+    <main>
+      <!-- Search form -->
+      <form id="search-form">
+        <div class="cwph-search-container">
+          <input
+            type="text"
+            id="search-input"
+            placeholder="Search for a food item..."
+            required
+          >
+          <button type="submit" class="cwph-btn cwph-btn-primary">
+            Search
+          </button>
+        </div>
+      </form>
+
+      <!-- Enhance button -->
+      <div class="cwph-action-container">
+        <button id="enhance-button" class="cwph-btn cwph-btn-accent">
+          Enhance Menu
+        </button>
+      </div>
+
+      <!-- History section -->
+      <div class="cwph-history-container">
+        <h2>Recent Searches</h2>
+        <ul id="history-list" class="cwph-history-list">
+          <!-- History items will be inserted here by JS -->
+          <li class="cwph-empty-history">No recent searches</li>
+        </ul>
+      </div>
+    </main>
+
+    <footer>
+      <p>v1.0.0 - Find food images with ease</p>
+    </footer>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
