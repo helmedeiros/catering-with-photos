@@ -4,46 +4,53 @@
  * @param {number} count - Maximum number of images to return (default: 5)
  * @returns {Promise<string[]>} Array of image URLs
  */
+import { getCached, setCached, cleanupCache } from './cache.js';
+
+// Maximum number of entries to store in cache
+const MAX_CACHE_ENTRIES = 100;
+
 export async function fetchImages(query, count = 5) {
-  // In test environment, return mock images
-  if (typeof window !== 'undefined' && window.__CWPH_TEST__) {
-    // Mock Google search response
-    const mockImages = [
-      'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
-      'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
-      'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
-    ];
-    return mockImages.slice(0, count);
-  }
-
-  // In production, use Google Images search
-  const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}&tbm=isch&safe=active`;
-
   try {
+    // Return mock images in test environment
+    if (typeof window !== 'undefined' && window.__CWPH_TEST__) {
+      return window.__CWPH_MOCK_IMAGES__ || [];
+    }
+
+    // Clean up expired cache entries before fetching
+    cleanupCache();
+
+    // Check cache first
+    const cachedImages = getCached(query);
+    if (cachedImages) {
+      return cachedImages.slice(0, count);
+    }
+
+    // In production, use Google Images search
+    const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}&tbm=isch&safe=active`;
+
     const response = await fetch(searchUrl, {
       mode: 'no-cors', // Handle CORS issues
       credentials: 'omit'
     });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
 
     const html = await response.text();
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
 
     // Find all image elements in the search results
-    const images = Array.from(doc.querySelectorAll('img[src^="http"]'))
+    const images = Array.from(doc.querySelectorAll('img'))
       .map(img => img.src)
-      .filter(src => src.startsWith('http')) // Ensure valid URLs
+      .filter(src => src && src.startsWith('http')) // Ensure valid URLs
       .slice(0, count); // Limit to requested count
+
+    // Cache the results if we found any
+    if (images.length > 0) {
+      setCached(query, images, MAX_CACHE_ENTRIES);
+    }
 
     return images;
   } catch (error) {
-    if (!window.__CWPH_TEST__) {
-      console.error('Error fetching images:', error);
-    }
-    throw error;
+    console.error('Error fetching images:', error);
+    return [];
   }
 }

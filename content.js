@@ -2,7 +2,7 @@ import { waitForMenu } from './utils/dom-utils.js';
 import { openModal, closeModal } from './components/modal.js';
 import { fetchImages } from './utils/image-scraper.js';
 
-function injectAddImagesButton() {
+export function injectAddImagesButton() {
   const topBar = document.querySelector('.sc-d-date-picker');
   if (topBar && !document.getElementById('cwph-add')) {
     const btn = document.createElement('button');
@@ -24,22 +24,12 @@ function injectAddImagesButton() {
   }
 }
 
-function injectButtonStyles() {
+export function injectButtonStyles() {
   if (window.chrome && chrome.scripting && chrome.scripting.insertCSS) {
     chrome.scripting.insertCSS({
       target: {tabId: window.tabId || 0}, // tabId is required in real extension context
       files: ['styles/button.css', 'styles/icon.css']
     });
-  } else {
-    // Fallback for JSDOM/testing: inject <style> tag
-    Promise.all([
-      fetch('styles/button.css').then(r => r.text()),
-      fetch('styles/icon.css').then(r => r.text())
-    ]).then(([buttonCss, iconCss]) => {
-      const style = document.createElement('style');
-      style.textContent = buttonCss + '\n' + iconCss;
-      document.head.appendChild(style);
-    }).catch(() => {});
   }
 }
 
@@ -67,6 +57,10 @@ export async function enhanceMenu() {
         }
       });
       observer.observe(root, { childList: true, subtree: true });
+      // Store observer reference for cleanup in tests
+      if (typeof window !== 'undefined' && window.__CWPH_TEST__) {
+        root.__observer = observer;
+      }
     }
   } catch (e) {
     // Optionally log or handle error

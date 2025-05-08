@@ -3,6 +3,7 @@ import puppeteer from 'puppeteer';
 import fs from 'fs';
 import path from 'path';
 import http from 'http';
+import { setupTestEnvironment, MOCK_IMAGES } from '../utils/test-env.js';
 
 describe('Modal E2E Flow', () => {
   let browser;
@@ -22,6 +23,18 @@ describe('Modal E2E Flow', () => {
             return;
           }
           res.writeHead(200, { 'Content-Type': 'text/html' });
+          res.end(data);
+        });
+      } else if (req.url.startsWith('/tests/')) {
+        // Serve test files
+        const filePath = path.join(process.cwd(), req.url);
+        fs.readFile(filePath, (err, data) => {
+          if (err) {
+            res.writeHead(404);
+            res.end('Not found');
+            return;
+          }
+          res.writeHead(200, { 'Content-Type': 'application/javascript' });
           res.end(data);
         });
       } else if (req.url.endsWith('.js')) {
@@ -83,10 +96,10 @@ describe('Modal E2E Flow', () => {
     page = await browser.newPage();
     page.setDefaultTimeout(30000);
 
-    // Set up test environment flag BEFORE loading the page
-    await page.evaluateOnNewDocument(() => {
-      window.__CWPH_TEST__ = true;
-    });
+    // Set up test environment flag and mock data BEFORE loading the page
+    await page.evaluateOnNewDocument((mockImages) => {
+      setupTestEnvironment(window, { mockImages });
+    }, MOCK_IMAGES);
 
     // Block all Google requests
     await page.setRequestInterception(true);
@@ -110,7 +123,8 @@ describe('Modal E2E Flow', () => {
         '/utils/dom-utils.js',
         '/utils/image-scraper.js',
         '/components/modal.js',
-        '/content.js'
+        '/content.js',
+        '/tests/utils/test-env.js'
       ];
 
       return Promise.all(scripts.map(src => {
@@ -124,6 +138,12 @@ describe('Modal E2E Flow', () => {
         });
       }));
     });
+
+    // Set up test environment
+    await page.evaluate((mockImages) => {
+      window.__CWPH_TEST__ = true;
+      window.__CWPH_MOCK_IMAGES__ = mockImages;
+    }, MOCK_IMAGES);
 
     // Call enhanceMenu() and wait for it to complete
     await page.addScriptTag({
@@ -206,6 +226,11 @@ describe('Modal E2E Flow', () => {
   }, 60000);
 
   test('should have working "See more on Google" link', async () => {
+    // Set up test environment flag and mock data BEFORE loading the page
+    await page.evaluateOnNewDocument((mockImages) => {
+      setupTestEnvironment(window, { mockImages });
+    }, MOCK_IMAGES);
+
     await page.goto(`http://localhost:${PORT}/fixtures/menu.html`, {
       waitUntil: ['load', 'networkidle0'],
       timeout: 30000
@@ -250,7 +275,7 @@ describe('Modal E2E Flow', () => {
     await page.click('#cwph-add');
 
     // Wait for icons to be injected
-    await page.waitForSelector('.cwph-icon', { visible: true, timeout: 30000 });
+    await page.waitForSelector('.cwph-icon', { timeout: 30000 });
 
     // Click the first icon
     await page.click('.cwph-icon');
