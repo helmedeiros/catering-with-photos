@@ -57,6 +57,10 @@ export async function enhanceMenu() {
         }
       });
       observer.observe(root, { childList: true, subtree: true });
+      // Store observer reference for cleanup in tests
+      if (typeof window !== 'undefined' && window.__CWPH_TEST__) {
+        root.__observer = observer;
+      }
     }
   } catch (e) {
     // Optionally log or handle error

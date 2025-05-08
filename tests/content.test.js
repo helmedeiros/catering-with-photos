@@ -1,6 +1,12 @@
 import { jest } from '@jest/globals';
-import { injectAddImagesButton, injectButtonStyles, enhanceMenu } from '../content.js';
 import { injectStylesForTesting } from './utils/test-env.js';
+
+// Mock waitForMenu
+jest.unstable_mockModule('../utils/dom-utils.js', () => ({
+  waitForMenu: jest.fn().mockImplementation(() => {
+    return Promise.resolve();
+  })
+}));
 
 // Mock chrome API
 global.chrome = {
@@ -33,8 +39,18 @@ global.fetch = jest.fn().mockImplementation((url) => {
   return Promise.reject(new Error('Not found'));
 });
 
+// Import the module under test after mocking dependencies
+let injectAddImagesButton;
+let injectButtonStyles;
+let enhanceMenu;
+
 describe('content.js', () => {
+  let observer;
+
   beforeEach(async () => {
+    // Use fake timers
+    jest.useFakeTimers();
+
     // Clear all mocks
     jest.clearAllMocks();
 
@@ -46,6 +62,21 @@ describe('content.js', () => {
         <div class="meal-name">Salad</div>
       </div>
     `;
+
+    // Import the module under test
+    const contentModule = await import('../content.js');
+    injectAddImagesButton = contentModule.injectAddImagesButton;
+    injectButtonStyles = contentModule.injectButtonStyles;
+    enhanceMenu = contentModule.enhanceMenu;
+  });
+
+  afterEach(() => {
+    // Clean up any observers
+    if (observer) {
+      observer.disconnect();
+    }
+    // Restore real timers
+    jest.useRealTimers();
   });
 
   describe('injectAddImagesButton', () => {
@@ -114,10 +145,13 @@ describe('content.js', () => {
     it('handles missing menu gracefully', async () => {
       document.body.innerHTML = '<div>No menu here</div>';
       await expect(enhanceMenu()).resolves.not.toThrow();
-    }, 15000);
+    });
 
     it('re-injects button when menu is updated', async () => {
-      await enhanceMenu();
+      // Store observer reference for cleanup
+      const enhanceMenuPromise = enhanceMenu();
+      observer = document.getElementById('root')?.['__observer'];
+
       const root = document.createElement('div');
       root.id = 'root';
       document.body.appendChild(root);
@@ -126,8 +160,9 @@ describe('content.js', () => {
       newMenu.className = 'PlasmicMenuplanmanagement_container';
       root.appendChild(newMenu);
 
-      // Wait for mutation observer
-      await new Promise(resolve => setTimeout(resolve, 0));
+      // Fast-forward timers
+      jest.runAllTimers();
+      await enhanceMenuPromise;
 
       const btn = document.getElementById('cwph-add');
       expect(btn).toBeTruthy();

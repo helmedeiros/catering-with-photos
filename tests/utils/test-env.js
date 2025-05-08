@@ -21,6 +21,15 @@ export function setupTestEnvironment(window, { mockImages = MOCK_IMAGES } = {}) 
 }
 
 /**
+ * Test version of waitForMenu that resolves immediately
+ * @param {Document|Element} root - The root element to observe, defaults to document
+ * @returns {Promise<Element>} The found menu element or a new div element
+ */
+export function waitForMenuTest(root = document) {
+  return Promise.resolve(root.querySelector('[class^="PlasmicMenuplanmanagement_"]') || document.createElement('div'));
+}
+
+/**
  * Injects styles for testing environment
  * @param {Window} window - The window object to modify
  * @param {string[]} styleFiles - Array of style file paths to inject
