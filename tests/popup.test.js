@@ -98,11 +98,16 @@ describe('popup.html', () => {
       expect(submitBtn.textContent.trim()).toBe('Search');
     });
 
-    it('should have an enhance menu button', () => {
-      const btn = document.getElementById('enhance-button');
-      expect(btn).toBeTruthy();
-      expect(btn.textContent.trim()).toBe('Enhance Menu');
-      expect(btn.classList.contains('cwph-btn-accent')).toBe(true);
+    it('should have an enhance menu button and clear cache button', () => {
+      const enhanceBtn = document.getElementById('enhance-button');
+      expect(enhanceBtn).toBeTruthy();
+      expect(enhanceBtn.textContent.trim()).toBe('Enhance Menu');
+      expect(enhanceBtn.classList.contains('cwph-btn-accent')).toBe(true);
+
+      const clearCacheBtn = document.getElementById('clear-cache-button');
+      expect(clearCacheBtn).toBeTruthy();
+      expect(clearCacheBtn.textContent.trim()).toBe('Clear Image Cache');
+      expect(clearCacheBtn.classList.contains('cwph-btn-secondary')).toBe(true);
     });
 
     it('should have a history section with empty state', () => {
@@ -193,6 +198,9 @@ describe('popup.js functionality', () => {
             <input id="search-input" type="text">
             <button type="submit">Search</button>
           </form>
+
+          <button id="enhance-button">Enhance Menu</button>
+          <button id="clear-cache-button">Clear Image Cache</button>
 
           <ul id="history-list">
             <li class="cwph-empty-history">No recent searches</li>

@@ -109,6 +109,18 @@ main {
   background-color: var(--accent-hover);
 }
 
+.cwph-btn-secondary {
+  background-color: #f0f0f0;
+  color: #555;
+  border: 1px solid var(--border-color);
+  width: 100%;
+  margin-top: 8px;
+}
+
+.cwph-btn-secondary:hover {
+  background-color: #e5e5e5;
+}
+
 /* History section */
 .cwph-history-container {
   margin-top: 8px;
@@ -169,4 +181,11 @@ footer p {
   color: #888;
   text-align: center;
   margin-top: 20px;
+}
+
+/* Action container */
+.cwph-action-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
