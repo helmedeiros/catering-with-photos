@@ -110,7 +110,7 @@ describe('content.js', () => {
       content.injectButtonStyles();
       expect(chrome.scripting.insertCSS).toHaveBeenCalledWith({
         target: { tabId: 0 },
-        files: ['styles/button.css', 'styles/icon.css']
+        files: ['styles/button.css', 'styles/icon.css', 'styles/modal.css']
       });
     });
   });

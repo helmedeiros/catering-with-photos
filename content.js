@@ -127,11 +127,77 @@ function injectAddImagesButton() {
 }
 
 function injectButtonStyles() {
+  // For Chrome extension environment
   if (window.chrome && chrome.scripting && chrome.scripting.insertCSS) {
     chrome.scripting.insertCSS({
       target: { tabId: 0 },
-      files: ['styles/button.css', 'styles/icon.css']
+      files: ['styles/button.css', 'styles/icon.css', 'styles/modal.css']
     });
+  } else {
+    // For websites where we don't have chrome.scripting API
+    // Inject styles directly
+    const style = document.createElement('style');
+    style.textContent = `
+      #cwph-add, #cwph-add-floating {
+        background-color: #4285f4;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 8px 16px;
+        cursor: pointer;
+        font-size: 14px;
+        margin: 8px;
+      }
+      #cwph-add:hover, #cwph-add-floating:hover {
+        background-color: #2b6bc3;
+      }
+      .cwph-icon {
+        margin-left: 8px;
+        cursor: pointer;
+      }
+
+      /* Modal styles */
+      .cwph-modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.7);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 10000;
+      }
+
+      .cwph-modal {
+        background: white;
+        border-radius: 8px;
+        max-width: 90%;
+        max-height: 90%;
+        width: 800px;
+        overflow-y: auto;
+        padding: 20px;
+        position: relative;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      }
+
+      .cwph-image-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+
+      .cwph-image-grid img {
+        width: 100%;
+        height: auto;
+        border-radius: 4px;
+        object-fit: cover;
+        aspect-ratio: 1 / 1;
+      }
+    `;
+    document.head.appendChild(style);
   }
 }
 

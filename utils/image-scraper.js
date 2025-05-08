@@ -25,25 +25,18 @@ export async function fetchImages(query, count = 5) {
       return cachedImages.slice(0, count);
     }
 
-    // In production, use Google Images search
-    const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}&tbm=isch&safe=active`;
+    // Using a service that allows CORS requests instead of direct Google Images search
+    // As a fallback, use placeholder images with the query text
+    // This is a temporary solution until we can implement a proper backend service
+    const images = [];
+    for (let i = 1; i <= count; i++) {
+      // Use a more reliable image source or your own backend API here
+      // For now, we're using real food images from Unsplash as placeholders
+      const randomId = Math.floor(Math.random() * 1000);
+      images.push(`https://source.unsplash.com/featured/?${encodeURIComponent(query)}&sig=${randomId}`);
+    }
 
-    const response = await fetch(searchUrl, {
-      mode: 'no-cors', // Handle CORS issues
-      credentials: 'omit'
-    });
-
-    const html = await response.text();
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
-
-    // Find all image elements in the search results
-    const images = Array.from(doc.querySelectorAll('img'))
-      .map(img => img.src)
-      .filter(src => src && src.startsWith('http')) // Ensure valid URLs
-      .slice(0, count); // Limit to requested count
-
-    // Cache the results if we found any
+    // Cache the results
     if (images.length > 0) {
       setCached(query, images, MAX_CACHE_ENTRIES);
     }

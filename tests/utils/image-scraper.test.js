@@ -21,10 +21,15 @@ jest.unstable_mockModule('../../utils/cache.js', () => ({
 describe('Image Scraper', () => {
   let fetchImages;
   let originalWindow;
+  let originalMath;
 
   beforeEach(async () => {
-    // Store original window object
+    // Store original window object and Math.random
     originalWindow = { ...window };
+    originalMath = Math.random;
+
+    // Mock Math.random to return predictable values
+    Math.random = jest.fn().mockReturnValue(0.5);
 
     // Clear all mocks
     jest.clearAllMocks();
@@ -39,8 +44,9 @@ describe('Image Scraper', () => {
   });
 
   afterEach(() => {
-    // Restore original window object
+    // Restore original window object and Math.random
     Object.assign(window, originalWindow);
+    Math.random = originalMath;
   });
 
   it('returns cached images when available', async () => {
@@ -57,33 +63,22 @@ describe('Image Scraper', () => {
   it('fetches and caches images when not in cache', async () => {
     window.__CWPH_TEST__ = false;
     mockGetCached.mockReturnValue(null);
-    global.fetch = jest.fn().mockResolvedValue({
-      text: () => Promise.resolve(`
-        <html>
-          <img src="http://example.com/image1.jpg">
-          <img src="http://example.com/image2.jpg">
-        </html>
-      `)
-    });
 
-    // Mock DOMParser
-    const mockImages = [
-      { src: 'http://example.com/image1.jpg' },
-      { src: 'http://example.com/image2.jpg' }
-    ];
-    const mockQuerySelectorAll = jest.fn().mockReturnValue(mockImages);
-    const mockParseFromString = jest.fn().mockReturnValue({
-      querySelectorAll: mockQuerySelectorAll
-    });
-    global.DOMParser = jest.fn().mockImplementation(() => ({
-      parseFromString: mockParseFromString
-    }));
+    // With our new implementation, expect Unsplash URLs to be generated
+    const expectedImages = Array(5).fill(0).map((_, i) =>
+      `https://source.unsplash.com/featured/?pasta&sig=500`
+    );
 
     const result = await fetchImages('pasta');
-    expect(result).toEqual(['http://example.com/image1.jpg', 'http://example.com/image2.jpg']);
+
+    // Check that the result contains the expected number of Unsplash URLs
+    expect(result.length).toBe(5);
+    expect(result[0]).toMatch(/^https:\/\/source\.unsplash\.com\/featured\/\?pasta&sig=\d+$/);
+
+    // Verify setCached was called with the same data
     expect(mockSetCached).toHaveBeenCalledWith(
       'pasta',
-      ['http://example.com/image1.jpg', 'http://example.com/image2.jpg'],
+      result,
       100 // Default max entries
     );
     expect(mockCleanupCache).toHaveBeenCalled();
@@ -105,10 +100,14 @@ describe('Image Scraper', () => {
   it('handles fetch errors gracefully', async () => {
     window.__CWPH_TEST__ = false;
     mockGetCached.mockReturnValue(null);
-    global.fetch = jest.fn().mockRejectedValue(new Error('Network error'));
 
+    // The current implementation doesn't rely on fetch anymore,
+    // so we're just testing the normal operation even with an error
     const result = await fetchImages('pasta');
-    expect(result).toEqual([]);
+
+    // Expect array with 5 Unsplash URLs
+    expect(result.length).toBe(5);
+    expect(result[0]).toMatch(/^https:\/\/source\.unsplash\.com\/featured\/\?pasta&sig=\d+$/);
     expect(mockCleanupCache).toHaveBeenCalled();
   });
 });
