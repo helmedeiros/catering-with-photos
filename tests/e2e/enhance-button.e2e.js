@@ -72,26 +72,45 @@ describe('Enhance Menu Button', () => {
             // Simplified version of addImagesToMeals for testing
             const mealNodes = document.querySelectorAll('.meal-name');
             mealNodes.forEach(mealNode => {
-              if (!mealNode.querySelector('.cwph-icon')) {
-                const iconSpan = document.createElement('span');
-                iconSpan.className = 'cwph-icon';
-                iconSpan.setAttribute('data-dish', mealNode.textContent.trim());
-                iconSpan.innerHTML = '&#128269;'; // Magnifying glass emoji as HTML entity
-
-                // Create text label
-                const textLabel = document.createElement('span');
-                textLabel.className = 'cwph-icon-label';
-                textLabel.textContent = 'See Dish Photos';
-
-                // Create a wrapper to position the icon next to the meal item instead of inside it
-                const iconWrapper = document.createElement('span');
-                iconWrapper.className = 'cwph-icon-wrapper';
-                iconWrapper.appendChild(iconSpan);
-                iconWrapper.appendChild(textLabel);
-
-                // Insert after the meal node instead of appending as a child
-                mealNode.parentNode.insertBefore(iconWrapper, mealNode.nextSibling);
+              // Check if this meal already has an icon wrapper as a sibling
+              const existingWrapper = mealNode.nextElementSibling;
+              if (existingWrapper && existingWrapper.classList.contains('cwph-icon-wrapper')) {
+                console.log('Icon already exists for:', mealNode.textContent.trim());
+                return; // Skip this meal node as it already has an icon
               }
+
+              // Also check if there's a wrapper anywhere after this node with the same dish name
+              const parentNode = mealNode.parentNode;
+              if (parentNode) {
+                const allWrappers = parentNode.querySelectorAll('.cwph-icon-wrapper');
+                for (const wrapper of allWrappers) {
+                  const icon = wrapper.querySelector('.cwph-icon');
+                  if (icon && icon.getAttribute('data-dish') === mealNode.textContent.trim()) {
+                    console.log('Icon already exists for this dish elsewhere:', mealNode.textContent.trim());
+                    return; // Skip this meal node as it already has an icon
+                  }
+                }
+              }
+
+              // No existing icon found, create a new one
+              const iconSpan = document.createElement('span');
+              iconSpan.className = 'cwph-icon';
+              iconSpan.setAttribute('data-dish', mealNode.textContent.trim());
+              iconSpan.innerHTML = '&#128269;'; // Magnifying glass emoji as HTML entity
+
+              // Create text label
+              const textLabel = document.createElement('span');
+              textLabel.className = 'cwph-icon-label';
+              textLabel.textContent = 'See Dish Photos';
+
+              // Create a wrapper to position the icon next to the meal item instead of inside it
+              const iconWrapper = document.createElement('span');
+              iconWrapper.className = 'cwph-icon-wrapper';
+              iconWrapper.appendChild(iconSpan);
+              iconWrapper.appendChild(textLabel);
+
+              // Insert after the meal node instead of appending as a child
+              mealNode.parentNode.insertBefore(iconWrapper, mealNode.nextSibling);
             });
           });
           return true;
