@@ -13,17 +13,9 @@ export async function fetchImages(query, count = 5) {
     return cachedImages.slice(0, count);
   }
 
-  // In test environment, return mock images
+  // In test environment, return empty array
   if (typeof window !== 'undefined' && window.__CWPH_TEST__) {
-    // Mock Google search response
-    const mockImages = [
-      'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
-      'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
-      'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
-    ];
-    const images = mockImages.slice(0, count);
-    setCached(query, images);
-    return images;
+    return window.__CWPH_MOCK_IMAGES__ || [];
   }
 
   // In production, use Google Images search

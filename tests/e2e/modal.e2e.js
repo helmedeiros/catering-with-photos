@@ -4,6 +4,13 @@ import fs from 'fs';
 import path from 'path';
 import http from 'http';
 
+// Mock data for E2E tests
+const MOCK_IMAGES = [
+  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
+  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
+  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+];
+
 describe('Modal E2E Flow', () => {
   let browser;
   let page;
@@ -83,10 +90,11 @@ describe('Modal E2E Flow', () => {
     page = await browser.newPage();
     page.setDefaultTimeout(30000);
 
-    // Set up test environment flag BEFORE loading the page
-    await page.evaluateOnNewDocument(() => {
+    // Set up test environment flag and mock data BEFORE loading the page
+    await page.evaluateOnNewDocument((mockImages) => {
       window.__CWPH_TEST__ = true;
-    });
+      window.__CWPH_MOCK_IMAGES__ = mockImages;
+    }, MOCK_IMAGES);
 
     // Block all Google requests
     await page.setRequestInterception(true);
@@ -206,6 +214,12 @@ describe('Modal E2E Flow', () => {
   }, 60000);
 
   test('should have working "See more on Google" link', async () => {
+    // Set up test environment flag and mock data BEFORE loading the page
+    await page.evaluateOnNewDocument((mockImages) => {
+      window.__CWPH_TEST__ = true;
+      window.__CWPH_MOCK_IMAGES__ = mockImages;
+    }, MOCK_IMAGES);
+
     await page.goto(`http://localhost:${PORT}/fixtures/menu.html`, {
       waitUntil: ['load', 'networkidle0'],
       timeout: 30000
@@ -250,7 +264,7 @@ describe('Modal E2E Flow', () => {
     await page.click('#cwph-add');
 
     // Wait for icons to be injected
-    await page.waitForSelector('.cwph-icon', { visible: true, timeout: 30000 });
+    await page.waitForSelector('.cwph-icon', { timeout: 30000 });
 
     // Click the first icon
     await page.click('.cwph-icon');

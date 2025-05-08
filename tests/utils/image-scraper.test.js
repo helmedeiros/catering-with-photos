@@ -1,5 +1,12 @@
 import { jest } from '@jest/globals';
 
+// Mock data for tests
+const MOCK_IMAGES = [
+  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
+  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
+  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+];
+
 // Mock the cache module
 const mockGetCached = jest.fn();
 const mockSetCached = jest.fn();
@@ -77,16 +84,15 @@ describe('Image Scraper', () => {
     expect(result).toEqual(['http://example.com/img1.jpg', 'http://example.com/img2.jpg']);
   });
 
-  it('caches mock images in test environment', async () => {
+  it('returns empty array in test environment', async () => {
     global.window.__CWPH_TEST__ = true;
     mockGetCached.mockReturnValue(null);
 
     const result = await fetchImages('pasta', 2);
 
     expect(mockGetCached).toHaveBeenCalledWith('pasta');
-    expect(mockSetCached).toHaveBeenCalledWith('pasta', expect.any(Array));
-    expect(result.length).toBe(2);
-    expect(result[0]).toMatch(/^data:image\/gif;base64,/);
+    expect(result).toEqual([]);
+    expect(mockSetCached).not.toHaveBeenCalled();
   });
 
   it('handles fetch errors gracefully', async () => {
