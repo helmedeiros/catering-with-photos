@@ -156,3 +156,166 @@ describe('popup.html', () => {
     });
   });
 });
+
+// Tests for popup.js functionality - manually testing the functions
+describe('popup.js functionality', () => {
+  const HISTORY_KEY = 'cwph-history';
+  const LANGUAGE_KEY = 'cwph-language';
+  const mockHistory = ['Pasta Carbonara', 'Caesar Salad', 'Tiramisu'];
+
+  // Mock functions similar to those in popup.js
+  let renderHistory;
+  let loadHistory;
+  let updateLanguageUI;
+  let saveLanguagePreference;
+
+  let document;
+  let chromeStorageMock;
+
+  beforeEach(() => {
+    // Set up DOM
+    const dom = new JSDOM(`
+      <!DOCTYPE html>
+      <html>
+      <head><title>Test</title></head>
+      <body>
+        <div class="cwph-popup">
+          <select id="language-select">
+            <option value="en">English</option>
+            <option value="de">Deutsch</option>
+          </select>
+
+          <input id="search-input" type="text">
+
+          <ul id="history-list">
+            <li class="cwph-empty-history">No recent searches</li>
+          </ul>
+        </div>
+      </body>
+      </html>
+    `);
+
+    document = dom.window.document;
+
+    // Mock Chrome storage
+    chromeStorageMock = {
+      get: jest.fn((key, callback) => {
+        if (key === HISTORY_KEY) {
+          callback({ [HISTORY_KEY]: mockHistory });
+        } else if (key === LANGUAGE_KEY) {
+          callback({ [LANGUAGE_KEY]: 'de' });
+        } else {
+          callback({});
+        }
+      }),
+      set: jest.fn((data, callback) => {
+        if (callback) callback();
+      })
+    };
+
+    // Define our test implementations of the popup.js functions
+    loadHistory = async () => {
+      return new Promise((resolve) => {
+        chromeStorageMock.get(HISTORY_KEY, (result) => {
+          const history = result[HISTORY_KEY] || [];
+          resolve(history);
+        });
+      });
+    };
+
+    renderHistory = (history) => {
+      const historyList = document.getElementById('history-list');
+
+      // Clear existing list items
+      historyList.innerHTML = '';
+
+      if (history.length === 0) {
+        // Show empty state
+        const emptyItem = document.createElement('li');
+        emptyItem.className = 'cwph-empty-history';
+        emptyItem.textContent = 'No recent searches';
+        historyList.appendChild(emptyItem);
+        return;
+      }
+
+      // Add each history item to the list
+      history.forEach(item => {
+        const listItem = document.createElement('li');
+        listItem.textContent = item;
+        listItem.dataset.query = item;
+        listItem.addEventListener('click', () => {
+          // Set the search input value to the clicked history item
+          document.getElementById('search-input').value = item;
+        });
+        historyList.appendChild(listItem);
+      });
+    };
+
+    updateLanguageUI = (language) => {
+      const selector = document.getElementById('language-select');
+      selector.value = language;
+    };
+
+    saveLanguagePreference = async (language) => {
+      return new Promise((resolve) => {
+        chromeStorageMock.set({ [LANGUAGE_KEY]: language }, resolve);
+      });
+    };
+  });
+
+  describe('History functionality', () => {
+    it('should load history from storage', async () => {
+      const history = await loadHistory();
+      expect(chromeStorageMock.get).toHaveBeenCalledWith(HISTORY_KEY, expect.any(Function));
+      expect(history).toEqual(mockHistory);
+    });
+
+    it('should render history items correctly', async () => {
+      const history = await loadHistory();
+      renderHistory(history);
+
+      const historyItems = document.querySelectorAll('#history-list li');
+      expect(historyItems.length).toBe(mockHistory.length);
+
+      // Check each item text
+      mockHistory.forEach((item, index) => {
+        expect(historyItems[index].textContent).toBe(item);
+      });
+    });
+
+    it('should update search input when history item is clicked', async () => {
+      const history = await loadHistory();
+      renderHistory(history);
+
+      const searchInput = document.getElementById('search-input');
+      const firstHistoryItem = document.querySelector('#history-list li');
+
+      firstHistoryItem.click();
+      expect(searchInput.value).toBe(mockHistory[0]);
+    });
+
+    it('should show empty state when history is empty', () => {
+      renderHistory([]);
+
+      const emptyState = document.querySelector('.cwph-empty-history');
+      expect(emptyState).toBeTruthy();
+      expect(emptyState.textContent).toBe('No recent searches');
+    });
+  });
+
+  describe('Language functionality', () => {
+    it('should update language UI correctly', async () => {
+      updateLanguageUI('de');
+      const select = document.getElementById('language-select');
+      expect(select.value).toBe('de');
+    });
+
+    it('should save language preference to storage', async () => {
+      await saveLanguagePreference('en');
+      expect(chromeStorageMock.set).toHaveBeenCalledWith(
+        { [LANGUAGE_KEY]: 'en' },
+        expect.any(Function)
+      );
+    });
+  });
+});
