@@ -6,6 +6,9 @@
  */
 import { getCached, setCached, cleanupCache } from './cache.js';
 
+// Maximum number of entries to store in cache
+const MAX_CACHE_ENTRIES = 100;
+
 export async function fetchImages(query, count = 5) {
   try {
     // Return mock images in test environment
@@ -42,7 +45,7 @@ export async function fetchImages(query, count = 5) {
 
     // Cache the results if we found any
     if (images.length > 0) {
-      setCached(query, images);
+      setCached(query, images, MAX_CACHE_ENTRIES);
     }
 
     return images;

@@ -1,5 +1,5 @@
 import { jest } from '@jest/globals';
-import { getCached, setCached, cleanupCache } from '../../utils/cache.js';
+import { getCached, setCached, cleanupCache, getCacheSize } from '../../utils/cache.js';
 
 describe('Cache Utility', () => {
   beforeEach(() => {
@@ -48,6 +48,24 @@ describe('Cache Utility', () => {
       // Should be expired with 1-hour TTL
       expect(getCached('pasta', 60 * 60 * 1000)).toBeNull();
     });
+
+    it('updates lastAccessed timestamp on access', () => {
+      const images = ['image1.jpg'];
+      setCached('pasta', images);
+
+      // Initial access
+      getCached('pasta');
+      const initialCache = JSON.parse(localStorage.getItem('cwph-cache'));
+      const initialAccessed = initialCache.pasta.lastAccessed;
+
+      // Advance time and access again
+      jest.advanceTimersByTime(1000); // 1 second
+      getCached('pasta');
+      const updatedCache = JSON.parse(localStorage.getItem('cwph-cache'));
+      const updatedAccessed = updatedCache.pasta.lastAccessed;
+
+      expect(updatedAccessed).toBeGreaterThan(initialAccessed);
+    });
   });
 
   describe('setCached', () => {
@@ -72,6 +90,54 @@ describe('Cache Utility', () => {
 
       expect(cache.pasta).toHaveProperty('timestamp');
       expect(cache.pasta.timestamp).toBe(Date.now());
+    });
+
+    it('evicts least recently used entry when cache is full', () => {
+      // Fill cache to maximum (using small max for test)
+      const maxEntries = 3;
+
+      // Add entries with different timestamps
+      setCached('soup', ['soup.jpg'], maxEntries);
+      jest.advanceTimersByTime(1000); // 1 second
+      setCached('pasta', ['pasta.jpg'], maxEntries);
+      jest.advanceTimersByTime(1000); // 1 second
+      setCached('salad', ['salad.jpg'], maxEntries);
+
+      // Access pasta and salad to make them more recently used
+      jest.advanceTimersByTime(1000); // 1 second
+      getCached('pasta');
+      jest.advanceTimersByTime(1000); // 1 second
+      getCached('salad');
+
+      // Add new entry, which should evict soup (least recently used)
+      jest.advanceTimersByTime(1000); // 1 second
+      setCached('pizza', ['pizza.jpg'], maxEntries);
+
+      // Verify eviction
+      expect(getCacheSize()).toBe(3);
+      expect(getCached('soup')).toBeNull(); // Should be evicted
+      expect(getCached('pasta')).toEqual(['pasta.jpg']);
+      expect(getCached('salad')).toEqual(['salad.jpg']);
+      expect(getCached('pizza')).toEqual(['pizza.jpg']);
+    });
+
+    it('does not evict when updating existing entry in full cache', () => {
+      const maxEntries = 3;
+      setCached('pasta', ['pasta1.jpg'], maxEntries);
+      jest.advanceTimersByTime(1000); // 1 second
+      setCached('salad', ['salad.jpg'], maxEntries);
+      jest.advanceTimersByTime(1000); // 1 second
+      setCached('soup', ['soup.jpg'], maxEntries);
+
+      // Update existing entry
+      jest.advanceTimersByTime(1000); // 1 second
+      setCached('pasta', ['pasta2.jpg'], maxEntries);
+
+      // All entries should still exist
+      expect(getCacheSize()).toBe(3);
+      expect(getCached('pasta')).toEqual(['pasta2.jpg']);
+      expect(getCached('salad')).toEqual(['salad.jpg']);
+      expect(getCached('soup')).toEqual(['soup.jpg']);
     });
   });
 
@@ -114,6 +180,23 @@ describe('Cache Utility', () => {
 
     it('handles empty cache', () => {
       expect(() => cleanupCache()).not.toThrow();
+    });
+  });
+
+  describe('getCacheSize', () => {
+    it('returns 0 for empty cache', () => {
+      expect(getCacheSize()).toBe(0);
+    });
+
+    it('returns correct number of entries', () => {
+      setCached('pasta', ['pasta.jpg']);
+      setCached('salad', ['salad.jpg']);
+      expect(getCacheSize()).toBe(2);
+    });
+
+    it('handles invalid cache data', () => {
+      localStorage.setItem('cwph-cache', 'invalid json');
+      expect(getCacheSize()).toBe(0);
     });
   });
 });

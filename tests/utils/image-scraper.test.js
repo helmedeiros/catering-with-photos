@@ -81,7 +81,11 @@ describe('Image Scraper', () => {
 
     const result = await fetchImages('pasta');
     expect(result).toEqual(['http://example.com/image1.jpg', 'http://example.com/image2.jpg']);
-    expect(mockSetCached).toHaveBeenCalledWith('pasta', expect.any(Array));
+    expect(mockSetCached).toHaveBeenCalledWith(
+      'pasta',
+      ['http://example.com/image1.jpg', 'http://example.com/image2.jpg'],
+      100 // Default max entries
+    );
     expect(mockCleanupCache).toHaveBeenCalled();
   });
 

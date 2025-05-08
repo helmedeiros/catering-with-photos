@@ -1,15 +1,17 @@
 /**
- * Cache utility for storing and retrieving image search results with TTL support
+ * Cache utility for storing and retrieving image search results with TTL and size limit support
  */
 
 const CACHE_KEY = 'cwph-cache';
 const DEFAULT_TTL = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+const DEFAULT_MAX_ENTRIES = 100; // Maximum number of entries to store
 
 /**
  * Cache entry structure
  * @typedef {Object} CacheEntry
  * @property {string[]} images - Array of image URLs
  * @property {number} timestamp - Unix timestamp when the entry was cached
+ * @property {number} lastAccessed - Unix timestamp when the entry was last accessed
  */
 
 /**
@@ -36,6 +38,10 @@ export function getCached(query, ttl = DEFAULT_TTL) {
       return null;
     }
 
+    // Update last accessed time
+    entry.lastAccessed = now;
+    localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+
     return entry.images;
   } catch (error) {
     console.error('Error reading from cache:', error);
@@ -47,15 +53,26 @@ export function getCached(query, ttl = DEFAULT_TTL) {
  * Stores images in cache for a given query with timestamp
  * @param {string} query - The search query
  * @param {string[]} images - Array of image URLs to cache
+ * @param {number} [maxEntries=DEFAULT_MAX_ENTRIES] - Maximum number of entries to store
  */
-export function setCached(query, images) {
+export function setCached(query, images, maxEntries = DEFAULT_MAX_ENTRIES) {
   try {
     const cacheStr = localStorage.getItem(CACHE_KEY);
     const cache = cacheStr ? JSON.parse(cacheStr) : {};
+    const now = Date.now();
+
+    // Check if we need to evict entries
+    if (Object.keys(cache).length >= maxEntries && !cache[query]) {
+      // Find the least recently used entry
+      const entries = Object.entries(cache)
+        .sort(([, a], [, b]) => (a.lastAccessed || a.timestamp) - (b.lastAccessed || b.timestamp));
+      delete cache[entries[0][0]];
+    }
 
     cache[query] = {
       images,
-      timestamp: Date.now()
+      timestamp: now,
+      lastAccessed: now
     };
 
     localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
@@ -89,5 +106,22 @@ export function cleanupCache(ttl = DEFAULT_TTL) {
     }
   } catch (error) {
     console.error('Error cleaning up cache:', error);
+  }
+}
+
+/**
+ * Gets the current number of entries in the cache
+ * @returns {number} Number of entries in the cache
+ */
+export function getCacheSize() {
+  try {
+    const cacheStr = localStorage.getItem(CACHE_KEY);
+    if (!cacheStr) return 0;
+
+    const cache = JSON.parse(cacheStr);
+    return Object.keys(cache).length;
+  } catch (error) {
+    console.error('Error getting cache size:', error);
+    return 0;
   }
 }
