@@ -125,3 +125,17 @@ export function getCacheSize() {
     return 0;
   }
 }
+
+/**
+ * Clears all cached images data
+ * @returns {boolean} True if cache was cleared successfully, false otherwise
+ */
+export function clearCache() {
+  try {
+    localStorage.removeItem(CACHE_KEY);
+    return true;
+  } catch (error) {
+    console.error('Error clearing cache:', error);
+    return false;
+  }
+}

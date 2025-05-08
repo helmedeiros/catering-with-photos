@@ -51,11 +51,11 @@ Each task maps directly to a prompt from `prompt_plan.md`.
 
 ## 🧰 M6 · Toolbar Popup
 
-- [ ] S6‑1: Create `popup.html` with layout
-- [ ] S6‑2: Wire popup JS logic
-- [ ] S6‑3: Implement manual search + enhance action
-- [ ] S6‑4: Implement "Enhance Menu" button
-- [ ] S6‑5: Add and render history list
+- [x] S6‑1: Create `popup.html` with layout
+- [x] S6‑2: Wire popup JS logic
+- [x] S6‑3: Implement manual search + enhance action
+- [x] S6‑4: Implement "Enhance Menu" button
+- [x] S6‑5: Add and render history list
 
 ## 🌐 M7 · Localization
 
