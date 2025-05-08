@@ -218,7 +218,7 @@ describe('Modal E2E Flow', () => {
     expect(modalTitle).toBeTruthy();
 
     // Verify modal has images (should be instant in test mode)
-    const images = await page.$$('.cwph-modal-images img');
+    const images = await page.$$('.cwph-image-grid img');
     expect(images.length).toBeGreaterThan(0);
 
     // Verify scroll is locked

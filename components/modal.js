@@ -37,7 +37,12 @@ export function openModal(title, images, errorMessage = null) {
   modalContainer.appendChild(titleElem);
 
   const imgContainer = document.createElement('div');
-  imgContainer.className = 'cwph-modal-images';
+  imgContainer.className = 'cwph-image-grid';
+  imgContainer.style.display = 'grid';
+  imgContainer.style.gridTemplateColumns = 'repeat(auto-fill, minmax(150px, 1fr))';
+  imgContainer.style.gap = '10px';
+  imgContainer.style.width = '100%';
+  imgContainer.style.padding = '10px';
 
   if (errorMessage) {
     const errorElem = document.createElement('p');
@@ -60,6 +65,13 @@ export function openModal(title, images, errorMessage = null) {
       const img = document.createElement('img');
       img.src = src;
       img.alt = title;
+      img.style.width = '100%';
+      img.style.height = 'auto';
+      img.style.borderRadius = '4px';
+      img.onerror = () => {
+        img.src = `https://via.placeholder.com/150?text=${encodeURIComponent(title.substring(0, 15))}`;
+        img.alt = `Placeholder for ${title}`;
+      };
       imgContainer.appendChild(img);
     });
   }
