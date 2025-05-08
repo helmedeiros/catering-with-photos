@@ -84,14 +84,27 @@ describe('Image Scraper', () => {
     expect(result).toEqual(['http://example.com/img1.jpg', 'http://example.com/img2.jpg']);
   });
 
-  it('returns empty array in test environment', async () => {
+  it('returns mock images in test environment', async () => {
     global.window.__CWPH_TEST__ = true;
+    global.window.__CWPH_MOCK_IMAGES__ = MOCK_IMAGES;
     mockGetCached.mockReturnValue(null);
 
     const result = await fetchImages('pasta', 2);
 
-    expect(mockGetCached).toHaveBeenCalledWith('pasta');
+    expect(result).toEqual(MOCK_IMAGES);
+    expect(mockGetCached).not.toHaveBeenCalled();
+    expect(mockSetCached).not.toHaveBeenCalled();
+  });
+
+  it('returns empty array when no mock images are provided in test environment', async () => {
+    global.window.__CWPH_TEST__ = true;
+    global.window.__CWPH_MOCK_IMAGES__ = undefined;
+    mockGetCached.mockReturnValue(null);
+
+    const result = await fetchImages('pasta', 2);
+
     expect(result).toEqual([]);
+    expect(mockGetCached).not.toHaveBeenCalled();
     expect(mockSetCached).not.toHaveBeenCalled();
   });
 

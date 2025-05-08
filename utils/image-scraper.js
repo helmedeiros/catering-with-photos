@@ -7,21 +7,21 @@
 import { getCached, setCached } from './cache.js';
 
 export async function fetchImages(query, count = 5) {
-  // Check cache first
-  const cachedImages = getCached(query);
-  if (cachedImages) {
-    return cachedImages.slice(0, count);
-  }
-
-  // In test environment, return empty array
-  if (typeof window !== 'undefined' && window.__CWPH_TEST__) {
-    return window.__CWPH_MOCK_IMAGES__ || [];
-  }
-
-  // In production, use Google Images search
-  const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}&tbm=isch&safe=active`;
-
   try {
+    // Return mock images in test environment
+    if (typeof window !== 'undefined' && window.__CWPH_TEST__) {
+      return window.__CWPH_MOCK_IMAGES__ || [];
+    }
+
+    // Check cache first
+    const cachedImages = await getCached(query);
+    if (cachedImages) {
+      return cachedImages.slice(0, count);
+    }
+
+    // In production, use Google Images search
+    const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}&tbm=isch&safe=active`;
+
     const response = await fetch(searchUrl, {
       mode: 'no-cors', // Handle CORS issues
       credentials: 'omit'
@@ -46,9 +46,7 @@ export async function fetchImages(query, count = 5) {
 
     return images;
   } catch (error) {
-    if (!window.__CWPH_TEST__) {
-      console.error('Error fetching images:', error);
-    }
+    console.error('Error fetching images:', error);
     throw error;
   }
 }
