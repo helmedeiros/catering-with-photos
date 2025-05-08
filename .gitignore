@@ -38,8 +38,16 @@ debug.log
 *.tmp
 *.temp
 temp_*
+*_temp
+*_tmp
 
 # Temporary commit message files
 commit_message.txt
 temp_commit_msg.txt
 *.commit.txt
+commit_msg.txt
+*_commit.txt
+*_commit_msg.txt
+*_commit_message.txt
+commit_*.txt
+temp_*_commit*.txt

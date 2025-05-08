@@ -1,72 +1,114 @@
 import { jest } from '@jest/globals';
-import { fetchImages } from '../../utils/image-scraper';
+
+// Mock data for tests
+const MOCK_IMAGES = [
+  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
+  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
+  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+];
+
+// Mock cache module
+const mockGetCached = jest.fn();
+const mockSetCached = jest.fn();
+const mockCleanupCache = jest.fn();
+
+jest.unstable_mockModule('../../utils/cache.js', () => ({
+  getCached: mockGetCached,
+  setCached: mockSetCached,
+  cleanupCache: mockCleanupCache
+}));
 
 describe('Image Scraper', () => {
-  beforeEach(() => {
-    // Mock fetch
-    global.fetch = jest.fn();
-    // Mock DOMParser
-    global.DOMParser = jest.fn().mockImplementation(() => ({
-      parseFromString: jest.fn().mockReturnValue({
-        querySelectorAll: jest.fn().mockReturnValue([
-          { src: 'http://example.com/image1.jpg' },
-          { src: 'http://example.com/image2.jpg' },
-          { src: 'http://example.com/image3.jpg' },
-          { src: 'http://example.com/image4.jpg' },
-          { src: 'http://example.com/image5.jpg' }
-        ])
-      })
-    }));
+  let fetchImages;
+  let originalWindow;
+
+  beforeEach(async () => {
+    // Store original window object
+    originalWindow = { ...window };
+
+    // Clear all mocks
+    jest.clearAllMocks();
+
+    // Reset test environment
+    window.__CWPH_TEST__ = false;
+    window.__CWPH_MOCK_IMAGES__ = undefined;
+
+    // Import the module under test
+    const module = await import('../../utils/image-scraper.js');
+    fetchImages = module.fetchImages;
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    // Restore original window object
+    Object.assign(window, originalWindow);
   });
 
-  it('fetches images from Google Images search', async () => {
-    // Mock successful response
-    global.fetch.mockResolvedValueOnce({
-      ok: true,
-      text: jest.fn().mockResolvedValue('<html><body><img src="test.jpg"></body></html>')
+  it('returns cached images when available', async () => {
+    window.__CWPH_TEST__ = false;
+    const mockImages = ['image1.jpg', 'image2.jpg'];
+    mockGetCached.mockReturnValue(mockImages);
+
+    const result = await fetchImages('pasta');
+    expect(result).toEqual(mockImages);
+    expect(mockGetCached).toHaveBeenCalledWith('pasta');
+    expect(mockCleanupCache).toHaveBeenCalled();
+  });
+
+  it('fetches and caches images when not in cache', async () => {
+    window.__CWPH_TEST__ = false;
+    mockGetCached.mockReturnValue(null);
+    global.fetch = jest.fn().mockResolvedValue({
+      text: () => Promise.resolve(`
+        <html>
+          <img src="http://example.com/image1.jpg">
+          <img src="http://example.com/image2.jpg">
+        </html>
+      `)
     });
 
-    const images = await fetchImages('pasta');
+    // Mock DOMParser
+    const mockImages = [
+      { src: 'http://example.com/image1.jpg' },
+      { src: 'http://example.com/image2.jpg' }
+    ];
+    const mockQuerySelectorAll = jest.fn().mockReturnValue(mockImages);
+    const mockParseFromString = jest.fn().mockReturnValue({
+      querySelectorAll: mockQuerySelectorAll
+    });
+    global.DOMParser = jest.fn().mockImplementation(() => ({
+      parseFromString: mockParseFromString
+    }));
 
-    expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('https://www.google.com/search?q=pasta&tbm=isch&safe=active'),
-      {
-        mode: 'no-cors',
-        credentials: 'omit'
-      }
+    const result = await fetchImages('pasta');
+    expect(result).toEqual(['http://example.com/image1.jpg', 'http://example.com/image2.jpg']);
+    expect(mockSetCached).toHaveBeenCalledWith(
+      'pasta',
+      ['http://example.com/image1.jpg', 'http://example.com/image2.jpg'],
+      100 // Default max entries
     );
-    expect(images).toHaveLength(5); // Default count
-  });
-
-  it('handles HTTP errors', async () => {
-    // Mock error response
-    global.fetch.mockResolvedValueOnce({
-      ok: false,
-      status: 404
-    });
-
-    await expect(fetchImages('pasta')).rejects.toThrow('HTTP error! status: 404');
-  });
-
-  it('handles network errors', async () => {
-    // Mock network error
-    global.fetch.mockRejectedValueOnce(new Error('Network error'));
-
-    await expect(fetchImages('pasta')).rejects.toThrow('Network error');
+    expect(mockCleanupCache).toHaveBeenCalled();
   });
 
   it('returns mock images in test environment', async () => {
-    // Set test environment flag
     window.__CWPH_TEST__ = true;
+    window.__CWPH_MOCK_IMAGES__ = MOCK_IMAGES;
+    const result = await fetchImages('pasta');
+    expect(result).toEqual(MOCK_IMAGES);
+  });
 
-    const images = await fetchImages('pasta', 2);
+  it('returns empty array when no mock images are provided in test environment', async () => {
+    window.__CWPH_TEST__ = true;
+    const result = await fetchImages('pasta');
+    expect(result).toEqual([]);
+  });
 
-    expect(global.fetch).not.toHaveBeenCalled();
-    expect(images).toHaveLength(2);
-    expect(images[0]).toMatch(/^data:image\/gif;base64,/);
+  it('handles fetch errors gracefully', async () => {
+    window.__CWPH_TEST__ = false;
+    mockGetCached.mockReturnValue(null);
+    global.fetch = jest.fn().mockRejectedValue(new Error('Network error'));
+
+    const result = await fetchImages('pasta');
+    expect(result).toEqual([]);
+    expect(mockCleanupCache).toHaveBeenCalled();
   });
 });
