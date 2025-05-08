@@ -1,12 +1,154 @@
-// content-script.js - Module version of the content script
-import { waitForMenu } from './utils/dom-utils.js';
-import { openModal, closeModal } from './components/modal.js';
+
+// Import fetchImages from the proper location
 import { fetchImages } from './utils/image-scraper.js';
+// content-script.js - Non-module version of the content script
 
 // Debug info
 console.log('Catering with Photos extension loaded');
 
-// Cache functions
+// Utility functions from dom-utils.js
+async function waitForMenu(root = document, timeout = 10000) {
+  return new Promise((resolve, reject) => {
+    // Check if element already exists
+    const existingElement = root.querySelector('[class^="PlasmicMenuplanmanagement_"]');
+    if (existingElement) {
+      return resolve(existingElement);
+    }
+
+    // Set timeout
+    const timeoutId = setTimeout(() => {
+      observer.disconnect();
+      reject(new Error('Timeout waiting for menu element'));
+    }, timeout);
+
+    // Create observer
+    const observer = new MutationObserver((mutations, obs) => {
+      for (const mutation of mutations) {
+        if (mutation.type === 'childList') {
+          const menuElement = root.querySelector('[class^="PlasmicMenuplanmanagement_"]');
+          if (menuElement) {
+            clearTimeout(timeoutId);
+            obs.disconnect();
+            resolve(menuElement);
+            return;
+          }
+        }
+      }
+    });
+
+    // Start observing
+    observer.observe(root, {
+      childList: true,
+      subtree: true
+    });
+  });
+}
+
+// Simplified modal functions
+function openModal(title, images, errorMessage = '') {
+  const modal = document.createElement('div');
+  modal.className = 'cwph-modal';
+  modal.setAttribute('role', 'dialog');
+  modal.setAttribute('aria-modal', 'true');
+  modal.setAttribute('aria-labelledby', 'modal-title');
+
+  const modalContent = document.createElement('div');
+  modalContent.className = 'cwph-modal-content';
+
+  const modalHeader = document.createElement('div');
+  modalHeader.className = 'cwph-modal-header';
+
+  const modalTitle = document.createElement('h2');
+  modalTitle.id = 'modal-title';
+  modalTitle.textContent = title;
+
+  const closeButton = document.createElement('button');
+  closeButton.className = 'cwph-modal-close';
+  closeButton.textContent = '×';
+  closeButton.setAttribute('aria-label', 'Close modal');
+
+  const modalBody = document.createElement('div');
+  modalBody.className = 'cwph-modal-body';
+
+  // Add error message if needed
+  if (errorMessage) {
+    const errorEl = document.createElement('p');
+    errorEl.className = 'cwph-error';
+    errorEl.textContent = errorMessage;
+    modalBody.appendChild(errorEl);
+  }
+
+  // Add image grid
+  const imageGrid = document.createElement('div');
+  imageGrid.className = 'cwph-image-grid cwph-modal-images';
+
+  // Add images
+  images.forEach(img => {
+    const imgEl = document.createElement('img');
+    imgEl.src = img.url || img;
+    imgEl.alt = img.alt || title;
+    imageGrid.appendChild(imgEl);
+  });
+
+  modalBody.appendChild(imageGrid);
+
+  // Add "See more" link if there are images
+  if (images.length > 0) {
+    const seeMoreLink = document.createElement('a');
+    seeMoreLink.href = `https://www.google.com/search?q=${encodeURIComponent(title)}&tbm=isch&safe=active`;
+    seeMoreLink.className = 'cwph-see-more';
+    seeMoreLink.target = '_blank';
+    seeMoreLink.rel = 'noopener noreferrer';
+    seeMoreLink.textContent = 'See more on Google';
+    modalBody.appendChild(seeMoreLink);
+  }
+
+  // Assemble the modal
+  modalHeader.appendChild(modalTitle);
+  modalHeader.appendChild(closeButton);
+  modalContent.appendChild(modalHeader);
+  modalContent.appendChild(modalBody);
+  modal.appendChild(modalContent);
+
+  // Add to document
+  document.body.appendChild(modal);
+
+  // Trap focus within modal
+  document.body.style.overflow = 'hidden';
+
+  // Add close handler
+  closeButton.addEventListener('click', () => {
+    closeModal();
+  });
+
+  // Focus the close button
+  closeButton.focus();
+
+  // Close on escape key
+  const keyHandler = (e) => {
+    if (e.key === 'Escape') closeModal();
+  };
+  document.addEventListener('keydown', keyHandler);
+
+  // Store keyHandler for cleanup
+  modal.__keyHandler = keyHandler;
+}
+
+function closeModal() {
+  const modal = document.querySelector('.cwph-modal');
+  if (modal) {
+    // Remove event listener if stored
+    if (modal.__keyHandler) {
+      document.removeEventListener('keydown', modal.__keyHandler);
+    }
+
+    modal.remove();
+    // Restore scroll
+    document.body.style.overflow = '';
+  }
+}
+
+// Improved image scraper function
 function getCachedImages(query) {
   try {
     const cacheData = localStorage.getItem('cwph-cache');
@@ -68,16 +210,7 @@ function injectAddImagesButton() {
     btn.textContent = 'Add Images';
     topBar.appendChild(btn);
     btn.addEventListener('click', () => {
-      const mealNodes = document.querySelectorAll('.PlasmicMenuplanmanagement_container .meal-name');
-      mealNodes.forEach(mealNode => {
-        if (!mealNode.querySelector('.cwph-icon')) {
-          const iconSpan = document.createElement('span');
-          iconSpan.className = 'cwph-icon';
-          iconSpan.setAttribute('data-dish', mealNode.textContent.trim());
-          iconSpan.textContent = '🔍';
-          mealNode.appendChild(iconSpan);
-        }
-      });
+      addImagesToMeals();
     });
     return true;
   } else {
@@ -106,16 +239,7 @@ function injectAddImagesButton() {
         btn.style.zIndex = '9999';
         container.appendChild(btn);
         btn.addEventListener('click', () => {
-          const mealNodes = document.querySelectorAll('.PlasmicMenuplanmanagement_container .meal-name');
-          mealNodes.forEach(mealNode => {
-            if (!mealNode.querySelector('.cwph-icon')) {
-              const iconSpan = document.createElement('span');
-              iconSpan.className = 'cwph-icon';
-              iconSpan.setAttribute('data-dish', mealNode.textContent.trim());
-              iconSpan.textContent = '🔍';
-              mealNode.appendChild(iconSpan);
-            }
-          });
+          addImagesToMeals();
         });
         return true;
       }
@@ -126,79 +250,137 @@ function injectAddImagesButton() {
   return false;
 }
 
-function injectButtonStyles() {
-  // For Chrome extension environment
-  if (window.chrome && chrome.scripting && chrome.scripting.insertCSS) {
-    chrome.scripting.insertCSS({
-      target: { tabId: 0 },
-      files: ['styles/button.css', 'styles/icon.css', 'styles/modal.css']
-    });
-  } else {
-    // For websites where we don't have chrome.scripting API
-    // Inject styles directly
-    const style = document.createElement('style');
-    style.textContent = `
-      #cwph-add, #cwph-add-floating {
-        background-color: #4285f4;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        padding: 8px 16px;
-        cursor: pointer;
-        font-size: 14px;
-        margin: 8px;
-      }
-      #cwph-add:hover, #cwph-add-floating:hover {
-        background-color: #2b6bc3;
-      }
-      .cwph-icon {
-        margin-left: 8px;
-        cursor: pointer;
-      }
+// Separate the action of adding images to meals
+function addImagesToMeals() {
+  console.log('Adding image icons to meals');
+  // Try multiple selectors to find meal elements
+  const mealSelectors = [
+    '.PlasmicMenuplanmanagement_container .meal-name',
+    '.meal-name',
+    '.meal',
+    // Add other potential selectors
+    'div[class*="meal"]',
+    'span[class*="meal"]'
+  ];
 
-      /* Modal styles */
-      .cwph-modal-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: rgba(0, 0, 0, 0.7);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 10000;
-      }
+  let mealNodes = [];
 
-      .cwph-modal {
-        background: white;
-        border-radius: 8px;
-        max-width: 90%;
-        max-height: 90%;
-        width: 800px;
-        overflow-y: auto;
-        padding: 20px;
-        position: relative;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      }
-
-      .cwph-image-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-        gap: 10px;
-        margin-bottom: 20px;
-      }
-
-      .cwph-image-grid img {
-        width: 100%;
-        height: auto;
-        border-radius: 4px;
-        object-fit: cover;
-        aspect-ratio: 1 / 1;
-      }
-    `;
-    document.head.appendChild(style);
+  for (const selector of mealSelectors) {
+    const nodes = document.querySelectorAll(selector);
+    console.log(`Found ${nodes.length} elements with selector: ${selector}`);
+    if (nodes.length > 0) {
+      mealNodes = Array.from(nodes);
+      break;
+    }
   }
+
+  if (mealNodes.length === 0) {
+    console.log('No meal nodes found. Trying to find text nodes that might be meals');
+    // As a last resort, look for elements that might contain food names
+    const textNodes = Array.from(document.querySelectorAll('div, span, p, h1, h2, h3, h4, h5, h6'))
+      .filter(el => el.textContent && el.textContent.trim().length > 0 && el.textContent.trim().length < 50 && !el.querySelector('*'));
+
+    console.log(`Found ${textNodes.length} potential text nodes that could be meals`);
+    mealNodes = textNodes;
+  }
+
+  mealNodes.forEach(mealNode => {
+    console.log('Processing meal node:', mealNode.textContent.trim());
+    if (!mealNode.querySelector('.cwph-icon')) {
+      const iconSpan = document.createElement('span');
+      iconSpan.className = 'cwph-icon';
+      iconSpan.setAttribute('data-dish', mealNode.textContent.trim());
+      iconSpan.textContent = '🔍';
+      mealNode.appendChild(iconSpan);
+      console.log('Added icon to:', mealNode.textContent.trim());
+    }
+  });
+
+  if (mealNodes.length === 0) {
+    alert('No meal items found on the page. Make sure you are on the menu page.');
+  }
+}
+
+function injectButtonStyles() {
+  // Add basic styles inline since we can't reference the CSS files directly
+  const style = document.createElement('style');
+  style.textContent = `
+    #cwph-add {
+      margin-left: 10px;
+      padding: 5px 10px;
+      background-color: #4285f4;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .cwph-icon {
+      margin-left: 5px;
+      cursor: pointer;
+      display: inline-block;
+    }
+
+    .cwph-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.7);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+
+    .cwph-modal-content {
+      background-color: white;
+      border-radius: 8px;
+      max-width: 80%;
+      max-height: 80%;
+      overflow: auto;
+      padding: 20px;
+    }
+
+    .cwph-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .cwph-modal-close {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+    }
+
+    .cwph-image-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .cwph-image-grid img {
+      width: 100%;
+      height: auto;
+      border-radius: 4px;
+    }
+
+    .cwph-see-more {
+      display: block;
+      margin-top: 15px;
+      text-align: center;
+    }
+
+    .cwph-error {
+      color: red;
+      text-align: center;
+    }
+  `;
+  document.head.appendChild(style);
 }
 
 async function enhanceMenu() {
@@ -242,16 +424,7 @@ async function enhanceMenu() {
       floatingBtn.style.boxShadow = '0 2px 5px rgba(0,0,0,0.3)';
 
       floatingBtn.addEventListener('click', () => {
-        const mealNodes = document.querySelectorAll('.PlasmicMenuplanmanagement_container .meal-name');
-        mealNodes.forEach(mealNode => {
-          if (!mealNode.querySelector('.cwph-icon')) {
-            const iconSpan = document.createElement('span');
-            iconSpan.className = 'cwph-icon';
-            iconSpan.setAttribute('data-dish', mealNode.textContent.trim());
-            iconSpan.textContent = '🔍';
-            mealNode.appendChild(iconSpan);
-          }
-        });
+        addImagesToMeals();
       });
 
       document.body.appendChild(floatingBtn);
@@ -267,7 +440,11 @@ async function enhanceMenu() {
               node.nodeType === 1 &&
               node.className &&
               typeof node.className === 'string' &&
-              node.className.startsWith('PlasmicMenuplanmanagement_') &&
+              (
+                node.className.startsWith('PlasmicMenuplanmanagement_') ||
+                node.className.includes('Plasmic') ||
+                node.className.includes('menu')
+              ) &&
               !document.getElementById('cwph-add')
             ) {
               console.log('Menu changed, reinjecting button');
@@ -391,6 +568,7 @@ export {
   injectButtonStyles,
   enhanceMenu,
   handleSearch,
+  addImagesToMeals,
   openModal,
   closeModal,
   fetchImages,

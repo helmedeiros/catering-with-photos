@@ -145,7 +145,7 @@ function closeModal() {
   }
 }
 
-// Simplified image scraper function
+// Improved image scraper function
 async function fetchImages(query) {
   try {
     // Check cache first
@@ -155,18 +155,31 @@ async function fetchImages(query) {
       return cachedImages;
     }
 
-    // Simple placeholder implementation
     console.log('Fetching images for:', query);
 
-    // Mock images for testing
-    const images = [
-      { url: 'https://via.placeholder.com/150?text=1', alt: query },
-      { url: 'https://via.placeholder.com/150?text=2', alt: query },
-      { url: 'https://via.placeholder.com/150?text=3', alt: query }
-    ];
+    // Fetch from Foodish API only
+    const images = [];
+    const FOODISH_API_URL = 'https://foodish-api.herokuapp.com/api';
 
-    // Save to cache
-    setCachedImages(query, images);
+    // Fetch images from Foodish API (3 attempts)
+    for (let i = 0; i < 3; i++) {
+      try {
+        const response = await fetch(FOODISH_API_URL);
+        if (!response.ok) throw new Error(`API responded with status: ${response.status}`);
+        const data = await response.json();
+        if (data && data.image) {
+          images.push({ url: data.image, alt: query });
+        }
+      } catch (error) {
+        console.error(`Attempt ${i+1} failed:`, error);
+        // Continue to next attempt
+      }
+    }
+
+    // Save to cache if we have images
+    if (images.length > 0) {
+      setCachedImages(query, images);
+    }
 
     return images;
   } catch (error) {

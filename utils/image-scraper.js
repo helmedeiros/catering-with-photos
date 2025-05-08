@@ -36,7 +36,12 @@ export async function fetchImages(query, count = 5) {
     for (let i = 0; i < count; i++) {
       fetchPromises.push(
         fetch(FOODISH_API_URL)
-          .then(response => response.json())
+          .then(response => {
+            if (!response.ok) {
+              throw new Error(`API responded with status: ${response.status}`);
+            }
+            return response.json();
+          })
           .then(data => data.image)
           .catch(error => {
             console.warn('Error fetching from Foodish API:', error);
@@ -57,18 +62,9 @@ export async function fetchImages(query, count = 5) {
       return validImages;
     }
 
-    // Fallback to default images if Foodish API fails
-    console.warn('Foodish API failed, falling back to default images');
-    const fallbackImages = [
-      'https://img.freepik.com/free-photo/top-view-table-full-delicious-food-composition_23-2149141352.jpg',
-      'https://img.freepik.com/free-photo/flat-lay-batch-cooking-composition_23-2149013906.jpg',
-      'https://img.freepik.com/free-photo/chicken-wings-barbecue-sweetly-sour-sauce-picnic-summer-menu-tasty-food-top-view-flat-lay_2829-6471.jpg',
-      'https://img.freepik.com/free-photo/top-view-food-frame-with-copy-space_23-2148723447.jpg',
-      'https://img.freepik.com/free-photo/concept-indian-cuisine-baked-chicken-wings-legs-honey-mustard-sauce-serving-dishes-restaurant-black-plate-indian-spices-wooden-table-background-image_127425-18.jpg'
-    ];
-
-    setCached(query, fallbackImages, MAX_CACHE_ENTRIES);
-    return fallbackImages.slice(0, count);
+    // No fallbacks, return empty array if the API fails completely
+    console.warn('Foodish API failed, returning empty array');
+    return [];
   } catch (error) {
     console.error('Error fetching images:', error);
     return [];

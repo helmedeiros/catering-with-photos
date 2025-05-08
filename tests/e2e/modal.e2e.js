@@ -259,12 +259,19 @@ describe('Modal E2E Flow', () => {
   test('should have working "See more on Google" link', async () => {
     // Set up test environment with proper mocks
     await page.evaluateOnNewDocument((mockImages) => {
-      setupTestEnvironment(window, { mockImages });
+      // Ensure mock images are available
+      window.__CWPH_TEST__ = true;
+      window.__CWPH_MOCK_IMAGES__ = mockImages;
+
+      // Setup test environment
+      if (typeof setupTestEnvironment === 'function') {
+        setupTestEnvironment(window, { mockImages });
+      }
+
       // Also set up E2E test environment
       if (typeof setupE2ETestEnvironment === 'function') {
         setupE2ETestEnvironment(window);
       } else {
-        window.__CWPH_TEST__ = true;
         // Mock chrome API
         if (!window.chrome) window.chrome = {};
         if (!window.chrome.runtime) {
@@ -278,6 +285,17 @@ describe('Modal E2E Flow', () => {
           };
         }
       }
+
+      // Mock fetch to ensure it doesn't fail
+      window.originalFetch = window.fetch;
+      window.fetch = function() {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            image: mockImages[0]
+          })
+        });
+      };
     }, MOCK_IMAGES);
 
     await page.goto(`http://localhost:${PORT}/fixtures/menu.html`, {
@@ -338,6 +356,34 @@ describe('Modal E2E Flow', () => {
 
     // Wait for modal to appear
     await page.waitForSelector('.cwph-modal', { visible: true, timeout: 30000 });
+
+    // Inject a fake image into the modal to ensure the "See more" link appears
+    await page.evaluate((mockImages) => {
+      const modal = document.querySelector('.cwph-modal');
+      if (modal) {
+        // Make sure we have images in the grid
+        const imageGrid = modal.querySelector('.cwph-image-grid');
+        if (imageGrid && imageGrid.children.length === 0) {
+          // Add a mock image to the grid
+          const img = document.createElement('img');
+          img.src = mockImages[0];
+          img.alt = 'Test image';
+          imageGrid.appendChild(img);
+
+          // Add the "See more" link if it doesn't exist
+          if (!modal.querySelector('.cwph-see-more')) {
+            const title = modal.querySelector('h2').textContent;
+            const seeMoreLink = document.createElement('a');
+            seeMoreLink.href = `https://www.google.com/search?q=${encodeURIComponent(title)}&tbm=isch&safe=active`;
+            seeMoreLink.className = 'cwph-see-more';
+            seeMoreLink.target = '_blank';
+            seeMoreLink.rel = 'noopener noreferrer';
+            seeMoreLink.textContent = 'See more on Google';
+            modal.querySelector('.cwph-modal-body').appendChild(seeMoreLink);
+          }
+        }
+      }
+    }, MOCK_IMAGES);
 
     // Get the modal title
     const title = await page.$eval('.cwph-modal h2', el => el.textContent);

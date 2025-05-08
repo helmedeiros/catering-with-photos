@@ -36,6 +36,7 @@ describe('Image Scraper', () => {
     // Mock fetch
     global.fetch = jest.fn().mockImplementation(() =>
       Promise.resolve({
+        ok: true,
         json: () => Promise.resolve(MOCK_FOODISH_RESPONSE)
       })
     );
@@ -108,7 +109,7 @@ describe('Image Scraper', () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  it('handles fetch errors gracefully and falls back to default images', async () => {
+  it('handles fetch errors gracefully and returns empty array', async () => {
     window.__CWPH_TEST__ = false;
     mockGetCached.mockReturnValue(null);
 
@@ -124,15 +125,46 @@ describe('Image Scraper', () => {
     try {
       const result = await fetchImages('pasta');
 
-      // Should still return images (fallback)
-      expect(result.length).toBeGreaterThan(0);
-      // Should warn about the failure
-      expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('falling back to default images'));
-      // Should cache the fallback images
-      expect(mockSetCached).toHaveBeenCalled();
+      // Should return empty array when API fails
+      expect(result.length).toBe(0);
+      // Should warn about the failure - at least one call should contain this text
+      expect(console.warn).toHaveBeenCalled();
+      // Should NOT cache any results
+      expect(mockSetCached).not.toHaveBeenCalled();
     } finally {
       console.warn = originalConsoleWarn;
       console.error = originalConsoleError;
+    }
+  });
+
+  it('handles HTTP errors from the API', async () => {
+    window.__CWPH_TEST__ = false;
+    mockGetCached.mockReturnValue(null);
+
+    // Mock fetch to return error status
+    global.fetch.mockImplementation(() =>
+      Promise.resolve({
+        ok: false,
+        status: 404,
+        json: () => Promise.resolve({})
+      })
+    );
+
+    // Spy on console.warn
+    const originalConsoleWarn = console.warn;
+    console.warn = jest.fn();
+
+    try {
+      const result = await fetchImages('pasta');
+
+      // Should return empty array when API returns errors
+      expect(result.length).toBe(0);
+      // Should warn about the failure - at least one call should happen
+      expect(console.warn).toHaveBeenCalled();
+      // Should log the Foodish API failed message
+      expect(console.warn).toHaveBeenCalledWith('Foodish API failed, returning empty array');
+    } finally {
+      console.warn = originalConsoleWarn;
     }
   });
 });
