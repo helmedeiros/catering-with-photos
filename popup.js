@@ -118,6 +118,26 @@ async function performSearch(query) {
 }
 
 /**
+ * Triggers the enhance menu action in the content script
+ * @returns {Promise<void>}
+ */
+async function enhanceMenu() {
+  try {
+    // Get the active tab
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab) {
+      console.error('No active tab found');
+      return;
+    }
+
+    // Send ENHANCE message to content script
+    await chrome.tabs.sendMessage(tab.id, { type: 'ENHANCE' });
+  } catch (error) {
+    console.error('Error enhancing menu:', error);
+  }
+}
+
+/**
  * Loads the user's language preference
  * @returns {Promise<string>} The language code ('en' or 'de')
  */
@@ -185,6 +205,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (query) {
         await performSearch(query);
       }
+    });
+
+    // Set up enhance menu button
+    const enhanceButton = document.getElementById('enhance-button');
+    enhanceButton.addEventListener('click', async () => {
+      await enhanceMenu();
+      window.close(); // Close popup after action
     });
 
   } catch (error) {
