@@ -2,11 +2,11 @@
 // Import fetchImages from the proper location
 import { fetchImages } from './utils/image-scraper.js';
 // content-script.js - Non-module version of the content script
-// Build: 2025-05-08T19:31:05.870Z
+// Build: 2025-05-08T20:08:23.217Z
 
 // Debug info
-console.log('%c Catering with Photos v1.0.2 ', 'background: #4CAF50; color: white; font-size: 12px; border-radius: 4px; padding: 2px 6px;');
-console.log('Build time:', '2025-05-08T19:31:05.870Z');
+console.log('%c Catering with Photos v1.0.7 ', 'background: #4CAF50; color: white; font-size: 12px; border-radius: 4px; padding: 2px 6px;');
+console.log('Build time:', '2025-05-08T20:08:23.217Z');
 
 // Utility functions from dom-utils.js
 async function waitForMenu(root = document, timeout = 10000) {
@@ -94,7 +94,27 @@ function openModal(title, images, errorMessage = '') {
     // Add images
     images.forEach(img => {
       const imgEl = document.createElement('img');
-      imgEl.src = img.url || img;
+      const imgUrl = img.url || img;
+
+      // Add error handler to try proxy if direct image load fails
+      imgEl.onerror = function() {
+        console.log('Image failed to load directly, trying proxy:', imgUrl);
+        // Try loading through proxy
+        chrome.runtime.sendMessage(
+          {
+            type: 'PROXY_REQUEST',
+            url: imgUrl
+          },
+          response => {
+            if (response && response.success && response.data && response.data.blob && response.data.url) {
+              // Use the blob URL from the proxy
+              imgEl.src = response.data.url;
+            }
+          }
+        );
+      };
+
+      imgEl.src = imgUrl;
       imgEl.alt = img.alt || title;
       imageGrid.appendChild(imgEl);
     });
@@ -159,6 +179,81 @@ function closeModal() {
 }
 
 // Improved image scraper function
+function extractImageUrls(html) {
+  const imageUrls = [];
+
+  try {
+    // Multiple patterns to try to catch image URLs in different formats
+
+    // Pattern 1: Look for "ou" URLs (Original URL)
+    const pattern1 = /"ou":"(https?:\/\/[^"]+)"/g;
+    let match;
+
+    while ((match = pattern1.exec(html)) !== null && imageUrls.length < 10) {
+      if (match[1] && !match[1].includes('gstatic.com') && !match[1].includes('google.com')) {
+        imageUrls.push(match[1]);
+      }
+    }
+
+    // Pattern 2: Alternative format with array notation
+    if (imageUrls.length === 0) {
+      const pattern2 = /\["(https?:\/\/[^"]+\.(?:jpg|jpeg|png|gif|webp)[^"]*)",\d+,\d+\]/g;
+
+      while ((match = pattern2.exec(html)) !== null && imageUrls.length < 10) {
+        if (match[1] && !match[1].includes('gstatic.com') && !match[1].includes('google.com')) {
+          imageUrls.push(match[1]);
+        }
+      }
+    }
+
+    // Pattern 3: Look for image URLs in src attributes
+    if (imageUrls.length === 0) {
+      const pattern3 = /src="(https?:\/\/[^"]+\.(?:jpg|jpeg|png|gif|webp)[^"]*)"/g;
+
+      while ((match = pattern3.exec(html)) !== null && imageUrls.length < 10) {
+        const url = match[1];
+        if (url && !url.includes('gstatic.com') &&
+            !url.includes('google.com') &&
+            !url.includes('favicon') &&
+            !url.includes('icon')) {
+          imageUrls.push(url);
+        }
+      }
+    }
+
+    // Pattern 4: Look for URLs in data-src attributes (for lazy loading)
+    if (imageUrls.length === 0) {
+      const pattern4 = /data-src="(https?:\/\/[^"]+\.(?:jpg|jpeg|png|gif|webp)[^"]*)"/g;
+
+      while ((match = pattern4.exec(html)) !== null && imageUrls.length < 10) {
+        const url = match[1];
+        if (url && !url.includes('gstatic.com') && !url.includes('google.com')) {
+          imageUrls.push(url);
+        }
+      }
+    }
+
+    // Pattern 5: Simple URL pattern for any remaining image URLs
+    if (imageUrls.length === 0) {
+      const pattern5 = /(https?:\/\/[^\s"]+\.(?:jpg|jpeg|png|gif|webp)[^\s"]*)/g;
+
+      while ((match = pattern5.exec(html)) !== null && imageUrls.length < 10) {
+        const url = match[1];
+        if (url && !url.includes('gstatic.com') && !url.includes('google.com')) {
+          imageUrls.push(url);
+        }
+      }
+    }
+
+    console.log(`Found ${imageUrls.length} images in search results`);
+  } catch (error) {
+    console.warn('Error extracting image URLs:', error);
+  }
+
+  return imageUrls;
+}
+
+// Cache functions
 function getCachedImages(query) {
   try {
     const cacheData = localStorage.getItem('cwph-cache');

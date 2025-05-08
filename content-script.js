@@ -1,9 +1,9 @@
 // content-script.js - Non-module version of the content script
-// Build: 2025-05-08T19:31:05.870Z
+// Build: 2025-05-08T20:08:23.217Z
 
 // Debug info
-console.log('%c Catering with Photos v1.0.2 ', 'background: #4CAF50; color: white; font-size: 12px; border-radius: 4px; padding: 2px 6px;');
-console.log('Build time:', '2025-05-08T19:31:05.870Z');
+console.log('%c Catering with Photos v1.0.7 ', 'background: #4CAF50; color: white; font-size: 12px; border-radius: 4px; padding: 2px 6px;');
+console.log('Build time:', '2025-05-08T20:08:23.217Z');
 
 // Utility functions from dom-utils.js
 async function waitForMenu(root = document, timeout = 10000) {
@@ -91,7 +91,27 @@ function openModal(title, images, errorMessage = '') {
     // Add images
     images.forEach(img => {
       const imgEl = document.createElement('img');
-      imgEl.src = img.url || img;
+      const imgUrl = img.url || img;
+
+      // Add error handler to try proxy if direct image load fails
+      imgEl.onerror = function() {
+        console.log('Image failed to load directly, trying proxy:', imgUrl);
+        // Try loading through proxy
+        chrome.runtime.sendMessage(
+          {
+            type: 'PROXY_REQUEST',
+            url: imgUrl
+          },
+          response => {
+            if (response && response.success && response.data && response.data.blob && response.data.url) {
+              // Use the blob URL from the proxy
+              imgEl.src = response.data.url;
+            }
+          }
+        );
+      };
+
+      imgEl.src = imgUrl;
       imgEl.alt = img.alt || title;
       imageGrid.appendChild(imgEl);
     });
@@ -167,22 +187,80 @@ async function fetchImages(query) {
 
     console.log('Fetching images for:', query);
 
-    // Fetch from Foodish API only
+    // Try to fetch from Google Images
     const images = [];
-    const FOODISH_API_URL = 'https://foodish-api.herokuapp.com/api';
 
-    // Fetch images from Foodish API (3 attempts)
-    for (let i = 0; i < 3; i++) {
-      try {
-        const response = await fetch(FOODISH_API_URL);
-        if (!response.ok) throw new Error(`API responded with status: ${response.status}`);
-        const data = await response.json();
-        if (data && data.image) {
-          images.push({ url: data.image, alt: query });
+    // Build the Google Images search URL - use a simpler URL format
+    const searchUrl = 'https://www.google.com/search?tbm=isch&q=' +
+                     encodeURIComponent(query + ' food');
+
+    // Try to fetch HTML content and extract image URLs
+    let htmlContent = null;
+
+    try {
+      // Skip direct fetch and go straight to proxy for Google searches
+      console.log('Using proxy for Google search');
+
+      // Use the background script proxy
+      const proxyResponse = await new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage(
+          {
+            type: 'PROXY_REQUEST',
+            url: searchUrl,
+            options: {
+              method: 'GET',
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+              }
+            }
+          },
+          response => {
+            if (chrome.runtime.lastError) {
+              return reject(new Error(chrome.runtime.lastError.message));
+            }
+
+            if (!response || !response.success) {
+              return reject(new Error(response?.error || 'Proxy request failed'));
+            }
+
+            resolve(response.data);
+          }
+        );
+      });
+
+      if (proxyResponse && proxyResponse.text) {
+        htmlContent = proxyResponse.text;
+        console.log('Successfully received HTML content from proxy');
+      }
+    } catch (proxyError) {
+      console.error('Proxy fetch also failed:', proxyError);
+    }
+
+    // Extract image URLs from HTML if we got any
+    if (htmlContent) {
+      // Look for image URLs in the HTML using regex patterns
+      const extractedUrls = extractImageUrls(htmlContent);
+
+      if (extractedUrls.length > 0) {
+        for (const url of extractedUrls.slice(0, 5)) {
+          images.push({ url, alt: query });
         }
-      } catch (error) {
-        console.error(`Attempt ${i+1} failed:`, error);
-        // Continue to next attempt
+      }
+    }
+
+    // If no images found, use fallback URLs
+    if (images.length === 0) {
+      console.log('No images found, using fallback images');
+      const fallbackUrls = [
+        'https://source.unsplash.com/random/300x300?food',
+        'https://source.unsplash.com/featured/?food',
+        'https://images.unsplash.com/photo-1504674900247-0877df9cc836',
+        'https://images.unsplash.com/photo-1555939594-58d7cb561ad1',
+        'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe'
+      ];
+
+      for (let i = 0; i < 3; i++) {
+        images.push({ url: fallbackUrls[i % fallbackUrls.length], alt: query });
       }
     }
 
@@ -196,6 +274,81 @@ async function fetchImages(query) {
     console.error('Error fetching images:', error);
     return [];
   }
+}
+
+// Helper function to extract image URLs from Google search results
+function extractImageUrls(html) {
+  const imageUrls = [];
+
+  try {
+    // Multiple patterns to try to catch image URLs in different formats
+
+    // Pattern 1: Look for "ou" URLs (Original URL)
+    const pattern1 = /"ou":"(https?:\/\/[^"]+)"/g;
+    let match;
+
+    while ((match = pattern1.exec(html)) !== null && imageUrls.length < 10) {
+      if (match[1] && !match[1].includes('gstatic.com') && !match[1].includes('google.com')) {
+        imageUrls.push(match[1]);
+      }
+    }
+
+    // Pattern 2: Alternative format with array notation
+    if (imageUrls.length === 0) {
+      const pattern2 = /\["(https?:\/\/[^"]+\.(?:jpg|jpeg|png|gif|webp)[^"]*)",\d+,\d+\]/g;
+
+      while ((match = pattern2.exec(html)) !== null && imageUrls.length < 10) {
+        if (match[1] && !match[1].includes('gstatic.com') && !match[1].includes('google.com')) {
+          imageUrls.push(match[1]);
+        }
+      }
+    }
+
+    // Pattern 3: Look for image URLs in src attributes
+    if (imageUrls.length === 0) {
+      const pattern3 = /src="(https?:\/\/[^"]+\.(?:jpg|jpeg|png|gif|webp)[^"]*)"/g;
+
+      while ((match = pattern3.exec(html)) !== null && imageUrls.length < 10) {
+        const url = match[1];
+        if (url && !url.includes('gstatic.com') &&
+            !url.includes('google.com') &&
+            !url.includes('favicon') &&
+            !url.includes('icon')) {
+          imageUrls.push(url);
+        }
+      }
+    }
+
+    // Pattern 4: Look for URLs in data-src attributes (for lazy loading)
+    if (imageUrls.length === 0) {
+      const pattern4 = /data-src="(https?:\/\/[^"]+\.(?:jpg|jpeg|png|gif|webp)[^"]*)"/g;
+
+      while ((match = pattern4.exec(html)) !== null && imageUrls.length < 10) {
+        const url = match[1];
+        if (url && !url.includes('gstatic.com') && !url.includes('google.com')) {
+          imageUrls.push(url);
+        }
+      }
+    }
+
+    // Pattern 5: Simple URL pattern for any remaining image URLs
+    if (imageUrls.length === 0) {
+      const pattern5 = /(https?:\/\/[^\s"]+\.(?:jpg|jpeg|png|gif|webp)[^\s"]*)/g;
+
+      while ((match = pattern5.exec(html)) !== null && imageUrls.length < 10) {
+        const url = match[1];
+        if (url && !url.includes('gstatic.com') && !url.includes('google.com')) {
+          imageUrls.push(url);
+        }
+      }
+    }
+
+    console.log(`Found ${imageUrls.length} images in search results`);
+  } catch (error) {
+    console.warn('Error extracting image URLs:', error);
+  }
+
+  return imageUrls;
 }
 
 // Cache functions

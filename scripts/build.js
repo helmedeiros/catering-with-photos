@@ -53,6 +53,19 @@ function updateVersion(newVersion) {
     fs.writeFileSync(contentPath, content);
   }
 
+  // Update background.js if it exists
+  const backgroundPath = path.resolve('background.js');
+  if (fs.existsSync(backgroundPath)) {
+    let background = fs.readFileSync(backgroundPath, 'utf8');
+    if (background.includes('Catering with Photos v')) {
+      background = background.replace(
+        /Catering with Photos v[0-9.]+/,
+        `Catering with Photos v${newVersion}`
+      );
+      fs.writeFileSync(backgroundPath, background);
+    }
+  }
+
   // Update popup.html
   const popupPath = path.resolve('popup.html');
   let popup = fs.readFileSync(popupPath, 'utf8');
@@ -92,6 +105,22 @@ function updateTimestamp() {
 
   fs.writeFileSync(filePath, content);
   console.log(`✅ Updated build timestamp to ${timestamp}`);
+
+  // Also update background.js timestamp if it exists
+  const backgroundPath = path.resolve('background.js');
+  if (fs.existsSync(backgroundPath)) {
+    let background = fs.readFileSync(backgroundPath, 'utf8');
+
+    if (background.includes('// Build:')) {
+      background = background.replace(/\/\/ Build:.*/, buildString);
+    } else {
+      // Add build timestamp if not present
+      background = `${background}\n\n${buildString}`;
+    }
+
+    fs.writeFileSync(backgroundPath, background);
+    console.log(`✅ Updated build timestamp in background.js`);
+  }
 }
 
 // Run the prepare-tests script which converts content-script.js to module format
