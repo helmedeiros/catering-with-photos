@@ -7,9 +7,29 @@ const MOCK_IMAGES = [
   'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
 ];
 
-// Mock Foodish API response
-const MOCK_FOODISH_RESPONSE = {
-  image: 'https://foodish-api.herokuapp.com/images/biryani/biryani10.jpg'
+// Mock Google search response
+const MOCK_GOOGLE_SEARCH_RESULT = `
+<!DOCTYPE html>
+<html>
+<head></head>
+<body>
+  <div class="search-results">
+    <script>AF_initDataCallback({data:[[["https://example.com/image1.jpg",200,300]]]})</script>
+    <div>"ou":"https://example.com/image2.jpg"</div>
+  </div>
+</body>
+</html>
+`;
+
+// Expected Google search URL pattern
+const GOOGLE_SEARCH_URL = 'https://www.google.com/search?q=pasta%20food&tbm=isch&safe=active';
+
+// Expected headers
+const EXPECTED_HEADERS = {
+  method: 'GET',
+  headers: {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+  }
 };
 
 // Mock cache module
@@ -17,11 +37,30 @@ const mockGetCached = jest.fn();
 const mockSetCached = jest.fn();
 const mockCleanupCache = jest.fn();
 
+// Mock proxy module
+const mockProxyFetch = jest.fn();
+const mockProxyImage = jest.fn();
+
 jest.unstable_mockModule('../../utils/cache.js', () => ({
   getCached: mockGetCached,
   setCached: mockSetCached,
   cleanupCache: mockCleanupCache
 }));
+
+jest.unstable_mockModule('../../utils/proxy.js', () => ({
+  proxyFetch: mockProxyFetch,
+  proxyImage: mockProxyImage
+}));
+
+// Mock chrome API
+global.chrome = {
+  runtime: {
+    sendMessage: jest.fn((message, callback) => {
+      callback({ success: true, data: { text: MOCK_GOOGLE_SEARCH_RESULT } });
+      return true;
+    })
+  }
+};
 
 describe('Image Scraper', () => {
   let fetchImages;
@@ -33,13 +72,17 @@ describe('Image Scraper', () => {
     originalWindow = { ...window };
     originalFetch = global.fetch;
 
-    // Mock fetch
+    // Mock fetch to return HTML content for Google search
     global.fetch = jest.fn().mockImplementation(() =>
       Promise.resolve({
         ok: true,
-        json: () => Promise.resolve(MOCK_FOODISH_RESPONSE)
+        text: () => Promise.resolve(MOCK_GOOGLE_SEARCH_RESULT),
+        url: 'https://www.google.com/search?q=pasta&tbm=isch'
       })
     );
+
+    // Mock proxy fetch to return HTML content
+    mockProxyFetch.mockResolvedValue({ text: MOCK_GOOGLE_SEARCH_RESULT });
 
     // Clear all mocks
     jest.clearAllMocks();
@@ -71,26 +114,20 @@ describe('Image Scraper', () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  it('fetches and caches images from Foodish API when not in cache', async () => {
+  it('fetches and caches images from Google when not in cache', async () => {
     window.__CWPH_TEST__ = false;
     mockGetCached.mockReturnValue(null);
 
     const result = await fetchImages('pasta', 3);
 
-    // Should make 3 API calls
-    expect(global.fetch).toHaveBeenCalledTimes(3);
-    expect(global.fetch).toHaveBeenCalledWith('https://foodish-api.herokuapp.com/api');
-
-    // Should return 3 image URLs
-    expect(result.length).toBe(3);
-    expect(result[0]).toBe(MOCK_FOODISH_RESPONSE.image);
-
-    // Should cache the results
-    expect(mockSetCached).toHaveBeenCalledWith(
-      'pasta',
-      result,
-      100 // Default max entries
+    // Should make API call to Google Images
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringMatching(/google.com\/search\?q=/),
+      expect.objectContaining(EXPECTED_HEADERS)
     );
+
+    // Should have attempted to cache results
+    expect(mockSetCached).toHaveBeenCalled();
     expect(mockCleanupCache).toHaveBeenCalled();
   });
 
@@ -109,14 +146,40 @@ describe('Image Scraper', () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  it('handles fetch errors gracefully and returns empty array', async () => {
+  it('tries proxy fetch when direct fetch fails', async () => {
     window.__CWPH_TEST__ = false;
     mockGetCached.mockReturnValue(null);
 
-    // Mock fetch to fail
-    global.fetch.mockRejectedValue(new Error('Network error'));
+    // Mock direct fetch to fail
+    global.fetch.mockRejectedValue(new Error('CORS error'));
 
-    // Spy on console.warn
+    // Mock proxy fetch to succeed
+    mockProxyFetch.mockResolvedValue({ text: MOCK_GOOGLE_SEARCH_RESULT });
+
+    const result = await fetchImages('pasta', 1);
+
+    // Should have attempted direct fetch
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringMatching(/google.com\/search\?q=/),
+      expect.objectContaining(EXPECTED_HEADERS)
+    );
+
+    // Should have fallen back to proxy
+    expect(mockProxyFetch).toHaveBeenCalledWith(
+      expect.stringMatching(/google.com\/search\?q=/),
+      expect.objectContaining(EXPECTED_HEADERS)
+    );
+  });
+
+  it('uses fallback images when fetch fails', async () => {
+    window.__CWPH_TEST__ = false;
+    mockGetCached.mockReturnValue(null);
+
+    // Mock both direct and proxy fetch to fail
+    global.fetch.mockRejectedValue(new Error('Network error'));
+    mockProxyFetch.mockRejectedValue(new Error('Proxy error'));
+
+    // Spy on console.warn and error
     const originalConsoleWarn = console.warn;
     const originalConsoleError = console.error;
     console.warn = jest.fn();
@@ -125,30 +188,35 @@ describe('Image Scraper', () => {
     try {
       const result = await fetchImages('pasta');
 
-      // Should return empty array when API fails
-      expect(result.length).toBe(0);
-      // Should warn about the failure - at least one call should contain this text
+      // Should return fallback images (not empty array)
+      expect(result.length).toBeGreaterThan(0);
+      expect(result[0]).toContain('unsplash.com');
+
+      // Should warn about the failures
       expect(console.warn).toHaveBeenCalled();
-      // Should NOT cache any results
-      expect(mockSetCached).not.toHaveBeenCalled();
+
+      // Should have cached the fallback results
+      expect(mockSetCached).toHaveBeenCalled();
     } finally {
       console.warn = originalConsoleWarn;
       console.error = originalConsoleError;
     }
   });
 
-  it('handles HTTP errors from the API', async () => {
+  it('handles HTTP errors and falls back to default images', async () => {
     window.__CWPH_TEST__ = false;
     mockGetCached.mockReturnValue(null);
 
-    // Mock fetch to return error status
+    // Mock direct fetch to return error status
     global.fetch.mockImplementation(() =>
       Promise.resolve({
         ok: false,
-        status: 404,
-        json: () => Promise.resolve({})
+        status: 404
       })
     );
+
+    // Mock proxy fetch to also fail
+    mockProxyFetch.mockRejectedValue(new Error('Proxy error'));
 
     // Spy on console.warn
     const originalConsoleWarn = console.warn;
@@ -157,12 +225,11 @@ describe('Image Scraper', () => {
     try {
       const result = await fetchImages('pasta');
 
-      // Should return empty array when API returns errors
-      expect(result.length).toBe(0);
-      // Should warn about the failure - at least one call should happen
+      // Should return fallback images, not empty array
+      expect(result.length).toBeGreaterThan(0);
+
+      // Should warn about the failure
       expect(console.warn).toHaveBeenCalled();
-      // Should log the Foodish API failed message
-      expect(console.warn).toHaveBeenCalledWith('Foodish API failed, returning empty array');
     } finally {
       console.warn = originalConsoleWarn;
     }
