@@ -1,0 +1,25 @@
+{
+  "extension": {
+    "title": "Catering mit Fotos",
+    "footer": "Lebensmittelbilder leicht finden"
+  },
+  "popup": {
+    "searchPlaceholder": "Nach einem Lebensmittel suchen...",
+    "searchButton": "Suchen",
+    "enhanceMenu": "Menü erweitern",
+    "clearCache": "Bilder-Cache leeren",
+    "recentSearches": "Letzte Suchen",
+    "noRecentSearches": "Keine letzten Suchen"
+  },
+  "content": {
+    "addImages": "Bilder hinzufügen",
+    "noImages": "Keine Bilder für diesen Artikel verfügbar.",
+    "seeMore": "Mehr auf Google sehen",
+    "closeModal": "Modal schließen"
+  },
+  "messages": {
+    "cacheCleared": "Bilder-Cache erfolgreich geleert",
+    "connectionError": "Menü kann nicht erweitert werden: Stellen Sie sicher, dass Sie sich auf einer unterstützten Seite befinden (Z-Catering-Menü)",
+    "tryAgain": "Versuchen Sie es später erneut"
+  }
+}

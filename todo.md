@@ -59,7 +59,7 @@ Each task maps directly to a prompt from `prompt_plan.md`.
 
 ## 🌐 M7 · Localization
 
-- [ ] S7‑1: Add `en.json` and `de.json` locale files
+- [x] S7‑1: Add `en.json` and `de.json` locale files
 - [ ] S7‑2: Create `t()` translation util
 - [ ] S7‑3: Language toggle in popup
 - [ ] S7‑4: Translate content and modal strings

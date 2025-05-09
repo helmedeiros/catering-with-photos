@@ -1,0 +1,25 @@
+{
+  "extension": {
+    "title": "Catering with Photos",
+    "footer": "Find food images with ease"
+  },
+  "popup": {
+    "searchPlaceholder": "Search for a food item...",
+    "searchButton": "Search",
+    "enhanceMenu": "Enhance Menu",
+    "clearCache": "Clear Image Cache",
+    "recentSearches": "Recent Searches",
+    "noRecentSearches": "No recent searches"
+  },
+  "content": {
+    "addImages": "Add Images",
+    "noImages": "No images available for this item.",
+    "seeMore": "See more on Google",
+    "closeModal": "Close modal"
+  },
+  "messages": {
+    "cacheCleared": "Image cache cleared successfully",
+    "connectionError": "Cannot enhance menu: Make sure you are on a supported page (Z-Catering menu)",
+    "tryAgain": "Try again later"
+  }
+}
