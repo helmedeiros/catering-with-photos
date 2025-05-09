@@ -4,12 +4,65 @@ import fs from 'fs';
 import path from 'path';
 import { injectStylesForTesting } from './utils/test-env.js';
 
+// Create mock translations for testing
+const translations = {
+  en: {
+    'popup.searchPlaceholder': 'Search for a food item...',
+    'popup.searchButton': 'Search',
+    'popup.enhanceMenu': 'Enhance Menu',
+    'popup.clearCache': 'Clear Image Cache',
+    'popup.recentSearches': 'Recent Searches',
+    'popup.noRecentSearches': 'No recent searches',
+    'extension.footer': 'Find food images with ease',
+    'messages.connectionError': 'Cannot enhance menu: Make sure you are on a supported page',
+    'messages.cacheCleared': 'Image cache cleared successfully',
+    'messages.tryAgain': 'Try again later'
+  },
+  de: {
+    'popup.searchPlaceholder': 'Nach einem Lebensmittel suchen...',
+    'popup.searchButton': 'Suchen',
+    'popup.enhanceMenu': 'Menü erweitern',
+    'popup.clearCache': 'Bilder-Cache leeren',
+    'popup.recentSearches': 'Letzte Suchen',
+    'popup.noRecentSearches': 'Keine letzten Suchen',
+    'extension.footer': 'Lebensmittelbilder leicht finden',
+    'messages.connectionError': 'Menü kann nicht erweitert werden',
+    'messages.cacheCleared': 'Bilder-Cache erfolgreich geleert',
+    'messages.tryAgain': 'Versuchen Sie es später erneut'
+  }
+};
+
+// Keep track of the current language
+let mockCurrentLang = 'en';
+
+// Create mock functions
+const mockT = jest.fn(async (key) => {
+  return translations[mockCurrentLang][key] || key;
+});
+
+const mockSetLanguage = jest.fn(async (lang) => {
+  mockCurrentLang = lang;
+  return Promise.resolve();
+});
+
+const mockUpdateCachedLanguage = jest.fn(() => Promise.resolve());
+
+// Mock the i18n module
+jest.unstable_mockModule('../utils/i18n.js', () => ({
+  t: mockT,
+  setLanguage: mockSetLanguage,
+  updateCachedLanguage: mockUpdateCachedLanguage
+}));
+
 describe('popup.html', () => {
   let dom;
   let document;
   let window;
 
   beforeEach(async () => {
+    // Reset mock language to English
+    mockCurrentLang = 'en';
+
     // Read popup.html file
     const html = fs.readFileSync(path.resolve('popup.html'), 'utf8');
 
@@ -175,6 +228,7 @@ describe('popup.js functionality', () => {
   let saveLanguagePreference;
   let saveToHistory;
   let performSearch;
+  let updateUIText;
 
   let document;
   let window;
@@ -182,6 +236,9 @@ describe('popup.js functionality', () => {
   let chromeTabsMock;
 
   beforeEach(() => {
+    // Reset mock language to English
+    mockCurrentLang = 'en';
+
     // Set up DOM
     const dom = new JSDOM(`
       <!DOCTYPE html>
@@ -195,16 +252,23 @@ describe('popup.js functionality', () => {
           </select>
 
           <form id="search-form">
-            <input id="search-input" type="text">
+            <input id="search-input" type="text" placeholder="Search for a food item...">
             <button type="submit">Search</button>
           </form>
 
           <button id="enhance-button">Enhance Menu</button>
           <button id="clear-cache-button">Clear Image Cache</button>
 
-          <ul id="history-list">
-            <li class="cwph-empty-history">No recent searches</li>
-          </ul>
+          <div class="cwph-history-container">
+            <h2>Recent Searches</h2>
+            <ul id="history-list">
+              <li class="cwph-empty-history">No recent searches</li>
+            </ul>
+          </div>
+
+          <footer>
+            <p>v1.1.5 - Find food images with ease</p>
+          </footer>
         </div>
       </body>
       </html>
@@ -319,6 +383,22 @@ describe('popup.js functionality', () => {
         chromeStorageMock.set({ [LANGUAGE_KEY]: language }, resolve);
       });
     };
+
+    // Mock implementation of updateUIText using our mocked i18n module
+    updateUIText = async () => {
+      document.querySelector('#search-input').placeholder = await mockT('popup.searchPlaceholder');
+      document.querySelector('#search-form button').textContent = await mockT('popup.searchButton');
+      document.querySelector('#enhance-button').textContent = await mockT('popup.enhanceMenu');
+      document.querySelector('#clear-cache-button').textContent = await mockT('popup.clearCache');
+      document.querySelector('.cwph-history-container h2').textContent = await mockT('popup.recentSearches');
+
+      const emptyHistory = document.querySelector('.cwph-empty-history');
+      if (emptyHistory) {
+        emptyHistory.textContent = await mockT('popup.noRecentSearches');
+      }
+
+      document.querySelector('footer p').textContent = `v1.1.5 - ${await mockT('extension.footer')}`;
+    };
   });
 
   describe('History functionality', () => {
@@ -384,6 +464,60 @@ describe('popup.js functionality', () => {
         { [LANGUAGE_KEY]: 'en' },
         expect.any(Function)
       );
+    });
+
+    it('should update UI text with English translations', async () => {
+      mockCurrentLang = 'en';
+      await updateUIText();
+
+      expect(document.querySelector('#search-input').placeholder).toBe('Search for a food item...');
+      expect(document.querySelector('#search-form button').textContent).toBe('Search');
+      expect(document.querySelector('#enhance-button').textContent).toBe('Enhance Menu');
+      expect(document.querySelector('#clear-cache-button').textContent).toBe('Clear Image Cache');
+      expect(document.querySelector('.cwph-history-container h2').textContent).toBe('Recent Searches');
+      expect(document.querySelector('.cwph-empty-history').textContent).toBe('No recent searches');
+      expect(document.querySelector('footer p').textContent).toBe('v1.1.5 - Find food images with ease');
+    });
+
+    it('should update UI text with German translations', async () => {
+      mockCurrentLang = 'de';
+      await updateUIText();
+
+      expect(document.querySelector('#search-input').placeholder).toBe('Nach einem Lebensmittel suchen...');
+      expect(document.querySelector('#search-form button').textContent).toBe('Suchen');
+      expect(document.querySelector('#enhance-button').textContent).toBe('Menü erweitern');
+      expect(document.querySelector('#clear-cache-button').textContent).toBe('Bilder-Cache leeren');
+      expect(document.querySelector('.cwph-history-container h2').textContent).toBe('Letzte Suchen');
+      expect(document.querySelector('.cwph-empty-history').textContent).toBe('Keine letzten Suchen');
+      expect(document.querySelector('footer p').textContent).toBe('v1.1.5 - Lebensmittelbilder leicht finden');
+    });
+
+    it('should apply language change when selector is changed', async () => {
+      // Set up language selector for event handling
+      const languageSelector = document.getElementById('language-select');
+      languageSelector.addEventListener('change', async () => {
+        const newLanguage = languageSelector.value;
+        await saveLanguagePreference(newLanguage);
+        await mockSetLanguage(newLanguage);
+        await mockUpdateCachedLanguage();
+        await updateUIText();
+      });
+
+      // Initial state (English)
+      expect(document.querySelector('#enhance-button').textContent).toBe('Enhance Menu');
+
+      // Change language to German
+      languageSelector.value = 'de';
+      languageSelector.dispatchEvent(new window.Event('change'));
+
+      // Wait for async operations
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      // Check that text was updated to German
+      expect(document.querySelector('#enhance-button').textContent).toBe('Menü erweitern');
+      expect(mockSetLanguage).toHaveBeenCalledWith('de');
+      expect(mockUpdateCachedLanguage).toHaveBeenCalled();
+      expect(chromeStorageMock.set).toHaveBeenCalledWith({ [LANGUAGE_KEY]: 'de' }, expect.any(Function));
     });
   });
 

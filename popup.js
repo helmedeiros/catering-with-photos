@@ -5,6 +5,8 @@
 
 // Import cache utilities
 import { clearCache } from './utils/cache.js';
+// Import i18n utilities
+import { t, setLanguage, updateCachedLanguage } from './utils/i18n.js';
 
 // Constants for storage keys
 const HISTORY_KEY = 'cwph-history';
@@ -72,7 +74,7 @@ function renderHistory(history) {
     // Show empty state
     const emptyItem = document.createElement('li');
     emptyItem.className = 'cwph-empty-history';
-    emptyItem.textContent = 'No recent searches';
+    emptyItem.textContent = t('popup.noRecentSearches');
     historyList.appendChild(emptyItem);
     return;
   }
@@ -142,7 +144,7 @@ async function enhanceMenu() {
       console.error('Connection error:', connectionError);
 
       // Show an alert to the user
-      alert('Cannot enhance menu: Make sure you are on a supported page (Z-Catering menu)');
+      alert(await t('messages.connectionError'));
 
       // Don't close the popup on error so user can see the message
       return;
@@ -195,6 +197,27 @@ async function saveLanguagePreference(language) {
 }
 
 /**
+ * Updates all text elements in the popup to reflect the current language
+ */
+async function updateUIText() {
+  // Update page elements with translated text
+  document.querySelector('#search-input').placeholder = await t('popup.searchPlaceholder');
+  document.querySelector('#search-form button').textContent = await t('popup.searchButton');
+  document.querySelector('#enhance-button').textContent = await t('popup.enhanceMenu');
+  document.querySelector('#clear-cache-button').textContent = await t('popup.clearCache');
+  document.querySelector('.cwph-history-container h2').textContent = await t('popup.recentSearches');
+
+  // Update empty history text if present
+  const emptyHistory = document.querySelector('.cwph-empty-history');
+  if (emptyHistory) {
+    emptyHistory.textContent = await t('popup.noRecentSearches');
+  }
+
+  // Update footer text
+  document.querySelector('footer p').textContent = `v1.1.5 - ${await t('extension.footer')}`;
+}
+
+/**
  * Clears all cached images data and shows a confirmation
  */
 async function clearImageCache() {
@@ -204,13 +227,13 @@ async function clearImageCache() {
 
     if (success) {
       // Show confirmation to the user
-      alert('Image cache cleared successfully!');
+      alert(await t('messages.cacheCleared'));
     } else {
-      alert('Failed to clear image cache. Please try again.');
+      alert(await t('messages.tryAgain'));
     }
   } catch (error) {
     console.error('Error clearing cache:', error);
-    alert('An error occurred while clearing the cache.');
+    alert(await t('messages.tryAgain'));
   }
 }
 
@@ -219,18 +242,39 @@ document.addEventListener('DOMContentLoaded', async () => {
   try {
     // Load and render search history
     searchHistory = await loadHistory();
-    renderHistory(searchHistory);
 
     // Load and apply language preference
     const language = await loadLanguagePreference();
     updateLanguageUI(language);
 
+    // Update cached language for synchronous translations
+    await updateCachedLanguage();
+
+    // Update UI text based on current language
+    await updateUIText();
+
+    // Render history with translated text
+    renderHistory(searchHistory);
+
     // Set up language selector event listener
     const languageSelector = document.getElementById('language-select');
     languageSelector.addEventListener('change', async (event) => {
       const newLanguage = event.target.value;
+
+      // Save to storage
       await saveLanguagePreference(newLanguage);
-      // In future tasks, we'll add code to update UI text based on language
+
+      // Update language in i18n utility
+      await setLanguage(newLanguage);
+
+      // Update cached language
+      await updateCachedLanguage();
+
+      // Update UI text with new language
+      await updateUIText();
+
+      // Re-render history to update empty state message if needed
+      renderHistory(searchHistory);
     });
 
     // Set up search form submission
