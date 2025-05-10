@@ -2,11 +2,11 @@
 // Import fetchImages from the proper location
 import { fetchImages } from './utils/image-scraper.js';
 // content-script.js - Non-module version of the content script
-// Build: 2025-05-10T13:26:23.214Z
+// Build: 2025-05-10T13:43:08.663Z
 
 // Debug info
-console.log('%c Catering with Photos v1.1.21 ', 'background: #4CAF50; color: white; font-size: 12px; border-radius: 4px; padding: 2px 6px;');
-console.log('Build time:', '2025-05-10T13:26:23.214Z');
+console.log('%c Catering with Photos v1.1.23 ', 'background: #4CAF50; color: white; font-size: 12px; border-radius: 4px; padding: 2px 6px;');
+console.log('Build time:', '2025-05-10T13:43:08.663Z');
 
 // PAGE DETECTION - Determine which page we're on
 function detectCurrentPage() {
@@ -754,99 +754,34 @@ function closeModal() {
   }
 }
 
-// Improved image scraper function
-function extractImageUrls(html) {
-  const imageUrls = [];
+// Cache functions - using the same structure as utils/cache.js
+const CACHE_KEY = 'cwph-cache';
 
-  try {
-    // Multiple patterns to try to catch image URLs in different formats
-
-    // Pattern 1: Look for "ou" URLs (Original URL)
-    const pattern1 = /"ou":"(https?:\/\/[^"]+)"/g;
-    let match;
-
-    while ((match = pattern1.exec(html)) !== null && imageUrls.length < 10) {
-      if (match[1] && !match[1].includes('gstatic.com') && !match[1].includes('google.com')) {
-        imageUrls.push(match[1]);
-      }
-    }
-
-    // Pattern 2: Alternative format with array notation
-    if (imageUrls.length === 0) {
-      const pattern2 = /\["(https?:\/\/[^"]+\.(?:jpg|jpeg|png|gif|webp)[^"]*)",\d+,\d+\]/g;
-
-      while ((match = pattern2.exec(html)) !== null && imageUrls.length < 10) {
-        if (match[1] && !match[1].includes('gstatic.com') && !match[1].includes('google.com')) {
-          imageUrls.push(match[1]);
-        }
-      }
-    }
-
-    // Pattern 3: Look for image URLs in src attributes
-    if (imageUrls.length === 0) {
-      const pattern3 = /src="(https?:\/\/[^"]+\.(?:jpg|jpeg|png|gif|webp)[^"]*)"/g;
-
-      while ((match = pattern3.exec(html)) !== null && imageUrls.length < 10) {
-        const url = match[1];
-        if (url && !url.includes('gstatic.com') &&
-            !url.includes('google.com') &&
-            !url.includes('favicon') &&
-            !url.includes('icon')) {
-          imageUrls.push(url);
-        }
-      }
-    }
-
-    // Pattern 4: Look for URLs in data-src attributes (for lazy loading)
-    if (imageUrls.length === 0) {
-      const pattern4 = /data-src="(https?:\/\/[^"]+\.(?:jpg|jpeg|png|gif|webp)[^"]*)"/g;
-
-      while ((match = pattern4.exec(html)) !== null && imageUrls.length < 10) {
-        const url = match[1];
-        if (url && !url.includes('gstatic.com') && !url.includes('google.com')) {
-          imageUrls.push(url);
-        }
-      }
-    }
-
-    // Pattern 5: Simple URL pattern for any remaining image URLs
-    if (imageUrls.length === 0) {
-      const pattern5 = /(https?:\/\/[^\s"]+\.(?:jpg|jpeg|png|gif|webp)[^\s"]*)/g;
-
-      while ((match = pattern5.exec(html)) !== null && imageUrls.length < 10) {
-        const url = match[1];
-        if (url && !url.includes('gstatic.com') && !url.includes('google.com')) {
-          imageUrls.push(url);
-        }
-      }
-    }
-
-    console.log(`Found ${imageUrls.length} images in search results`);
-  } catch (error) {
-    console.warn('Error extracting image URLs:', error);
-  }
-
-  return imageUrls;
-}
-
-// Cache functions
 function getCachedImages(query) {
   try {
-    const cacheData = localStorage.getItem('cwph-cache');
-    if (!cacheData) return null;
+    const cacheStr = localStorage.getItem(CACHE_KEY);
+    if (!cacheStr) return null;
 
-    const cache = JSON.parse(cacheData);
-    const record = cache[query];
+    const cache = JSON.parse(cacheStr);
+    const entry = cache[query];
 
-    if (!record) return null;
+    if (!entry) return null;
 
     // Check if expired (30 days)
     const now = Date.now();
-    if (now - record.timestamp > 30 * 24 * 60 * 60 * 1000) {
+    if (now - entry.timestamp > 30 * 24 * 60 * 60 * 1000) {
+      // Entry has expired, remove it
+      delete cache[query];
+      localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
       return null;
     }
 
-    return record.images;
+    // Update last accessed time
+    entry.lastAccessed = now;
+    localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+
+    console.log('Retrieved cached images for:', query);
+    return entry.images;
   } catch (error) {
     console.error('Error getting cached images:', error);
     return null;
@@ -855,17 +790,65 @@ function getCachedImages(query) {
 
 function setCachedImages(query, images) {
   try {
-    const cacheData = localStorage.getItem('cwph-cache');
-    const cache = cacheData ? JSON.parse(cacheData) : {};
+    const cacheStr = localStorage.getItem(CACHE_KEY);
+    const cache = cacheStr ? JSON.parse(cacheStr) : {};
+    const now = Date.now();
+
+    // Check if we need to evict entries if we have too many
+    const MAX_ENTRIES = 100;
+    if (Object.keys(cache).length >= MAX_ENTRIES && !cache[query]) {
+      // Find the least recently used entry
+      const entries = Object.entries(cache)
+        .sort(([, a], [, b]) => (a.lastAccessed || a.timestamp) - (b.lastAccessed || b.timestamp));
+      if (entries.length > 0) {
+        delete cache[entries[0][0]];
+        console.log('Evicting least recently used cache entry:', entries[0][0]);
+      }
+    }
 
     cache[query] = {
       images,
-      timestamp: Date.now()
+      timestamp: now,
+      lastAccessed: now
     };
 
-    localStorage.setItem('cwph-cache', JSON.stringify(cache));
+    localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+    console.log('Saved images to cache for:', query);
   } catch (error) {
     console.error('Error setting cached images:', error);
+  }
+}
+
+// Add a direct cache checking function for debugging
+function debugShowCacheContents() {
+  try {
+    const cacheStr = localStorage.getItem(CACHE_KEY);
+    if (!cacheStr) {
+      console.log('DEBUG: Cache is empty or not found');
+      return;
+    }
+
+    const cache = JSON.parse(cacheStr);
+    console.log('DEBUG: Cache content summary:');
+    console.log(`Total entries: ${Object.keys(cache).length}`);
+
+    Object.entries(cache).forEach(([key, value]) => {
+      console.log(`- "${key}": ${value.images.length} images, last accessed: ${new Date(value.lastAccessed).toLocaleString()}`);
+    });
+  } catch (error) {
+    console.error('DEBUG: Error checking cache:', error);
+  }
+}
+
+// Directly expose cache clear function to match utils/cache.js
+function clearCache() {
+  try {
+    console.log('DEBUG: Clearing cache from content script');
+    localStorage.removeItem(CACHE_KEY);
+    return true;
+  } catch (error) {
+    console.error('DEBUG: Error clearing cache:', error);
+    return false;
   }
 }
 
@@ -1419,31 +1402,80 @@ async function enhanceMenu() {
   }
 }
 
-async function handleSearch(query) {
-  if (!query || !query.trim()) {
-    return;
-  }
+// Improved image scraper function
+function extractImageUrls(html) {
+  const imageUrls = [];
 
   try {
-    const images = await fetchImages(query);
-    if (images.length === 0) {
-      openModal(query, [], 'No images found for this search term.');
-    } else {
-      openModal(query, images);
-    }
-  } catch (error) {
-    openModal(query, [], 'Unable to load images. Please check your internet connection and try again.');
-  }
-}
+    // Multiple patterns to try to catch image URLs in different formats
 
-// Log page structure for debugging
-const hasMenu = !!document.querySelector('[class^="PlasmicMenuplanmanagement_"]');
-const hasTopBar = !!document.querySelector('.sc-d-date-picker');
-console.log('Page compatibility check:', {
-  hasMenu,
-  hasTopBar,
-  url: window.location.href
-});
+    // Pattern 1: Look for "ou" URLs (Original URL)
+    const pattern1 = /"ou":"(https?:\/\/[^"]+)"/g;
+    let match;
+
+    while ((match = pattern1.exec(html)) !== null && imageUrls.length < 10) {
+      if (match[1] && !match[1].includes('gstatic.com') && !match[1].includes('google.com')) {
+        imageUrls.push(match[1]);
+      }
+    }
+
+    // Pattern 2: Alternative format with array notation
+    if (imageUrls.length === 0) {
+      const pattern2 = /\["(https?:\/\/[^"]+\.(?:jpg|jpeg|png|gif|webp)[^"]*)",\d+,\d+\]/g;
+
+      while ((match = pattern2.exec(html)) !== null && imageUrls.length < 10) {
+        if (match[1] && !match[1].includes('gstatic.com') && !match[1].includes('google.com')) {
+          imageUrls.push(match[1]);
+        }
+      }
+    }
+
+    // Pattern 3: Look for image URLs in src attributes
+    if (imageUrls.length === 0) {
+      const pattern3 = /src="(https?:\/\/[^"]+\.(?:jpg|jpeg|png|gif|webp)[^"]*)"/g;
+
+      while ((match = pattern3.exec(html)) !== null && imageUrls.length < 10) {
+        const url = match[1];
+        if (url && !url.includes('gstatic.com') &&
+            !url.includes('google.com') &&
+            !url.includes('favicon') &&
+            !url.includes('icon')) {
+          imageUrls.push(url);
+        }
+      }
+    }
+
+    // Pattern 4: Look for URLs in data-src attributes (for lazy loading)
+    if (imageUrls.length === 0) {
+      const pattern4 = /data-src="(https?:\/\/[^"]+\.(?:jpg|jpeg|png|gif|webp)[^"]*)"/g;
+
+      while ((match = pattern4.exec(html)) !== null && imageUrls.length < 10) {
+        const url = match[1];
+        if (url && !url.includes('gstatic.com') && !url.includes('google.com')) {
+          imageUrls.push(url);
+        }
+      }
+    }
+
+    // Pattern 5: Simple URL pattern for any remaining image URLs
+    if (imageUrls.length === 0) {
+      const pattern5 = /(https?:\/\/[^\s"]+\.(?:jpg|jpeg|png|gif|webp)[^\s"]*)/g;
+
+      while ((match = pattern5.exec(html)) !== null && imageUrls.length < 10) {
+        const url = match[1];
+        if (url && !url.includes('gstatic.com') && !url.includes('google.com')) {
+          imageUrls.push(url);
+        }
+      }
+    }
+
+    console.log(`Found ${imageUrls.length} images in search results`);
+  } catch (error) {
+    console.warn('Error extracting image URLs:', error);
+  }
+
+  return imageUrls;
+}
 
 // Make sure we can trigger enhancement manually from the console
 window.cwphEnhanceMenu = enhanceMenu;
@@ -1500,17 +1532,61 @@ document.addEventListener('cwph-retry', async (event) => {
   }
 });
 
+// Restore the handleSearch function
+async function handleSearch(query) {
+  if (!query || !query.trim()) {
+    return;
+  }
+
+  try {
+    const images = await fetchImages(query);
+    if (images.length === 0) {
+      openModal(query, [], 'No images found for this search term.');
+    } else {
+      openModal(query, images);
+    }
+  } catch (error) {
+    openModal(query, [], 'Unable to load images. Please check your internet connection and try again.');
+  }
+}
+
+// Log page structure for debugging
+const hasMenu = !!document.querySelector('[class^="PlasmicMenuplanmanagement_"]');
+const hasTopBar = !!document.querySelector('.sc-d-date-picker');
+console.log('Page compatibility check:', {
+  hasMenu,
+  hasTopBar,
+  url: window.location.href
+});
+
 // Listen for messages from popup
 if (typeof chrome !== 'undefined' && chrome.runtime) {
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    console.log('Received message from popup:', message);
+    console.log('DEBUG: Received message from popup:', message);
+
     if (message.type === 'SEARCH' && message.query) {
       handleSearch(message.query);
       sendResponse({ success: true });
     } else if (message.type === 'ENHANCE') {
-      console.log('Received ENHANCE message');
+      console.log('DEBUG: Received ENHANCE message');
       enhanceMenu();
       sendResponse({ success: true });
+    } else if (message.type === 'CLEAR_CACHE') {
+      console.log('DEBUG: Received CLEAR_CACHE message directly in content script');
+
+      // Show cache before clearing
+      console.log('DEBUG: Cache before clearing:');
+      debugShowCacheContents();
+
+      // Clear cache directly
+      const result = clearCache();
+      console.log(`DEBUG: Cache clearing result: ${result}`);
+
+      // Verify cache is cleared
+      console.log('DEBUG: Cache after clearing:');
+      debugShowCacheContents();
+
+      sendResponse({ success: result });
     }
     return true; // Required for async sendResponse
   });

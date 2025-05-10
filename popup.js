@@ -199,15 +199,31 @@ async function saveLanguagePreference(language) {
  */
 async function clearImageCache() {
   try {
-    // Clear the cache
-    const success = clearCache();
+    console.log('Clearing image cache');
 
-    if (success) {
-      // Show confirmation to the user
-      alert('Image cache cleared successfully!');
-    } else {
-      alert('Failed to clear image cache. Please try again.');
+    // Clear the local cache using the util function
+    const localSuccess = clearCache();
+    console.log(`Local cache cleared: ${localSuccess}`);
+
+    // Send message to content script to clear its cache too
+    try {
+      // Get the active tab
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tab) {
+        // Send clear cache message directly to content script
+        console.log('Sending CLEAR_CACHE message to content script');
+        const response = await chrome.tabs.sendMessage(tab.id, { type: 'CLEAR_CACHE' });
+        console.log('Content script cache clear response:', response);
+      } else {
+        console.warn('No active tab found, only cleared local cache');
+      }
+    } catch (connectionError) {
+      console.warn('Content script connection error (tab may not be a menu page):', connectionError);
+      // Continue with confirmation even if content script isn't available
     }
+
+    // Always show confirmation to user
+    alert('Image cache cleared successfully!');
   } catch (error) {
     console.error('Error clearing cache:', error);
     alert('An error occurred while clearing the cache.');
