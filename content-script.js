@@ -1,9 +1,9 @@
 // content-script.js - Non-module version of the content script
-// Build: 2025-05-10T08:40:17.890Z
+// Build: 2025-05-10T13:11:12.296Z
 
 // Debug info
-console.log('%c Catering with Photos v1.1.16 ', 'background: #4CAF50; color: white; font-size: 12px; border-radius: 4px; padding: 2px 6px;');
-console.log('Build time:', '2025-05-10T08:40:17.890Z');
+console.log('%c Catering with Photos v1.1.19 ', 'background: #4CAF50; color: white; font-size: 12px; border-radius: 4px; padding: 2px 6px;');
+console.log('Build time:', '2025-05-10T13:11:12.296Z');
 
 // PAGE DETECTION - Determine which page we're on
 function detectCurrentPage() {
@@ -1031,19 +1031,112 @@ function addImagesToMeals() {
     console.log('No meal nodes found. Trying to find text nodes that might be meals');
     // As a last resort, look for elements that might contain food names
     const textNodes = Array.from(document.querySelectorAll('div, span, p, h1, h2, h3, h4, h5, h6'))
-      .filter(el => el.textContent && el.textContent.trim().length > 0 && el.textContent.trim().length < 50 && !el.querySelector('*'));
+      .filter(el => {
+        // Skip elements with specific classes or IDs that shouldn't have meal buttons
+        if (
+          (el.id && (el.id.includes('NEXT') || el.id.includes('next') || el.id.includes('data'))) ||
+          (el.className && (
+            el.className.includes('undefined') ||
+            el.className.includes('slick') ||
+            el.className.includes('footer')
+          )) ||
+          el.closest('footer') ||
+          el.closest('script') ||
+          // Skip footer elements or script elements
+          el.tagName === 'FOOTER' ||
+          el.tagName === 'SCRIPT' ||
+          // Skip navigation elements
+          el.textContent.trim() === 'Next' ||
+          el.textContent.trim().includes('12345') ||
+          // Skip elements that are CSS selectors (like .undefined)
+          el.textContent.trim().startsWith('.') ||
+          // Skip labels for inputs
+          el.getAttribute('for')
+        ) {
+          return false;
+        }
+
+        // Only consider elements that have text content, aren't too long or too short,
+        // don't have child elements, and are visible
+        return el.textContent &&
+               el.textContent.trim().length > 0 &&
+               el.textContent.trim().length < 50 &&
+               !el.querySelector('*') &&
+               // Ensure it's a visible element in a layout container, not floating in body
+               el.parentNode &&
+               el.parentNode !== document.body &&
+               // Even more strict filtering:
+               // 1. Make sure it's not in a standalone container
+               (el.parentNode.children.length > 1) &&
+               // 2. Make sure parent is not directly in body unless it's a recognized container
+               (el.parentNode.parentNode !== document.body ||
+                el.parentNode.className.includes('container') ||
+                el.parentNode.id === 'root' ||
+                el.parentNode.querySelectorAll('[class*="meal"]').length > 2) &&
+               // 3. Only consider elements that are likely to be meal names - with stricter regex
+               /^[A-Za-zäöüÄÖÜß\s\d\-&,.()]+$/.test(el.textContent.trim()) &&
+               // 4. Skip any elements that look like navigation, pagination or metadata
+               !el.textContent.trim().match(/^(next|previous|page|<<|>>|\d+|\.\w+)/i);
+      });
 
     console.log(`Found ${textNodes.length} potential text nodes that could be meals`);
     mealNodes = textNodes;
   }
 
+  // Get count before processing
+  const startingNodeCount = mealNodes.length;
+  console.log(`Starting with ${startingNodeCount} meal nodes`);
+
+  // Keep track of added buttons
+  const addedCount = {
+    successful: 0,
+    skipped: 0
+  };
+
+  // Filter out any 'Next' elements
+  mealNodes = mealNodes.filter(node => {
+    const text = node.textContent.trim();
+    if (
+      text === 'Next' ||
+      text.startsWith('Next') ||
+      text.includes('12345') ||
+      text.includes('undefined')
+    ) {
+      console.log('Filtering out navigation element:', text);
+      return false;
+    }
+    return true;
+  });
+
   mealNodes.forEach(mealNode => {
+    // Skip empty nodes or nodes with just whitespace
+    if (!mealNode.textContent || mealNode.textContent.trim() === '') {
+      console.log('Skipping empty node');
+      addedCount.skipped++;
+      return;
+    }
+
+    // Skip navigation and pagination elements by text content
+    const text = mealNode.textContent.trim();
+    if (
+      text === 'Next' ||
+      text === 'Previous' ||
+      text.match(/^[0-9]+$/) || // pure numbers
+      text.includes('undefined') ||
+      text.includes('slick')
+    ) {
+      console.log('Skipping navigation element:', text);
+      addedCount.skipped++;
+      return;
+    }
+
     console.log('Processing meal node:', mealNode.textContent.trim());
 
     // Check if this meal already has an icon wrapper as a sibling
     const existingWrapper = mealNode.nextElementSibling;
     if (existingWrapper && existingWrapper.classList.contains('cwph-icon-wrapper')) {
       console.log('Icon already exists for:', mealNode.textContent.trim());
+      addedCount.skipped++;
       return; // Skip this meal node as it already has an icon
     }
 
@@ -1055,9 +1148,35 @@ function addImagesToMeals() {
         const icon = wrapper.querySelector('.cwph-icon');
         if (icon && icon.getAttribute('data-dish') === mealNode.textContent.trim()) {
           console.log('Icon already exists for this dish elsewhere:', mealNode.textContent.trim());
+          addedCount.skipped++;
           return; // Skip this meal node as it already has an icon
         }
       }
+    }
+
+    // Additional verification - make sure this is really attached to a container
+    // and not just floating in the body
+    let isInValidContainer = false;
+    let current = mealNode.parentNode;
+
+    // Check up to 5 levels up to find a valid container
+    for (let i = 0; i < 5 && current; i++) {
+      if (
+        current.className.includes('container') ||
+        current.id === 'root' ||
+        current.querySelectorAll('[class*="meal"]').length > 2 ||
+        current.querySelectorAll('.meal-name').length > 0
+      ) {
+        isInValidContainer = true;
+        break;
+      }
+      current = current.parentNode;
+    }
+
+    if (!isInValidContainer) {
+      console.log('Node is not in a valid container, skipping:', mealNode.textContent.trim());
+      addedCount.skipped++;
+      return;
     }
 
     // No existing icon found, create a new one
@@ -1079,9 +1198,45 @@ function addImagesToMeals() {
 
     // Insert after the meal node instead of appending as a child
     mealNode.parentNode.insertBefore(iconWrapper, mealNode.nextSibling);
+    addedCount.successful++;
 
     console.log('Added icon to:', mealNode.textContent.trim());
   });
+
+  // Log summary of what happened
+  console.log('Icon addition summary:', {
+    totalNodeCount: startingNodeCount,
+    addedIcons: addedCount.successful,
+    skippedNodes: addedCount.skipped
+  });
+
+  // Final safety check - look for and remove any suspicious icon wrappers
+  // that may have been inadvertently added to navigation elements or footers
+  const suspiciousSelectors = [
+    'footer .cwph-icon-wrapper',
+    'script + .cwph-icon-wrapper',
+    'body > .cwph-icon-wrapper',
+    '.slick-arrow ~ .cwph-icon-wrapper',
+    '[id*="next"] ~ .cwph-icon-wrapper',
+    '[id*="NEXT"] ~ .cwph-icon-wrapper'
+  ];
+
+  let removedCount = 0;
+  suspiciousSelectors.forEach(selector => {
+    const suspiciousElements = document.querySelectorAll(selector);
+    if (suspiciousElements.length > 0) {
+      console.log(`Found ${suspiciousElements.length} suspicious elements matching ${selector}`);
+      suspiciousElements.forEach(el => {
+        console.log('Removing suspicious icon wrapper:', el.outerHTML);
+        el.remove();
+        removedCount++;
+      });
+    }
+  });
+
+  if (removedCount > 0) {
+    console.log(`Removed ${removedCount} suspicious icon wrappers`);
+  }
 
   if (mealNodes.length === 0) {
     alert('No meal items found on the page. Make sure you are on the menu page.');
