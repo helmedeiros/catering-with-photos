@@ -2,13 +2,19 @@
   "manifest_version": 3,
   "name": "Catering with Photos",
   "description": "Enhances Z-Catering menu by displaying food images next to each menu item",
-  "version": "1.1.31",
+  "version": "1.1.35",
   "permissions": [
     "activeTab",
     "storage"
   ],
   "host_permissions": [
-    "<all_urls>"
+    "https://bestellung.z-catering.de/*",
+    "http://localhost:*/*",
+    "https://*.google.com/*",
+    "https://*.googleapis.com/*",
+    "https://*.gstatic.com/*",
+    "https://source.unsplash.com/*",
+    "https://images.unsplash.com/*"
   ],
   "action": {
     "default_popup": "popup.html"
@@ -21,8 +27,7 @@
     {
       "matches": [
         "https://bestellung.z-catering.de/*",
-        "http://localhost:*/*",
-        "<all_urls>"
+        "http://localhost:*/*"
       ],
       "js": [
         "content-script.js"
