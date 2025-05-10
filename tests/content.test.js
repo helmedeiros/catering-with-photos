@@ -10,6 +10,9 @@ describe('content.js', () => {
     // Clean up between tests
     jest.resetModules();
 
+    // Mock document body for DOM manipulation tests
+    document.body.innerHTML = '';
+
     // Import the content module
     content = await import('../content.js');
   });
@@ -35,5 +38,23 @@ describe('content.js', () => {
 
     const contentJs = fs.readFileSync(path.resolve('content.js'), 'utf8');
     expect(contentJs).toContain("import { fetchImages } from './utils/image-scraper.js'");
+  });
+
+  // Test the new floating button implementation
+  it('creates a fixed-position floating button', () => {
+    // Call the inject button function
+    content.injectAddImagesButton();
+
+    // Verify the button was created and properly positioned
+    const button = document.getElementById('cwph-add');
+    expect(button).not.toBeNull();
+    expect(button.textContent).toBe('Add Images');
+
+    // Check that the container has the right positioning styles
+    const container = button.parentElement;
+    expect(container.style.position).toBe('fixed');
+    expect(container.style.bottom).toBe('20px');
+    expect(container.style.right).toBe('20px');
+    expect(container.style.zIndex).toBe('99999');
   });
 });

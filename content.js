@@ -2,11 +2,11 @@
 // Import fetchImages from the proper location
 import { fetchImages } from './utils/image-scraper.js';
 // content-script.js - Non-module version of the content script
-// Build: 2025-05-10T07:38:44.473Z
+// Build: 2025-05-10T08:40:17.890Z
 
 // Debug info
-console.log('%c Catering with Photos v1.1.11 ', 'background: #4CAF50; color: white; font-size: 12px; border-radius: 4px; padding: 2px 6px;');
-console.log('Build time:', '2025-05-10T07:38:44.473Z');
+console.log('%c Catering with Photos v1.1.16 ', 'background: #4CAF50; color: white; font-size: 12px; border-radius: 4px; padding: 2px 6px;');
+console.log('Build time:', '2025-05-10T08:40:17.890Z');
 
 // PAGE DETECTION - Determine which page we're on
 function detectCurrentPage() {
@@ -868,70 +868,41 @@ function injectAddImagesButton() {
     children: div.children.length
   })));
 
-  const topBar = document.querySelector('.sc-d-date-picker');
-  console.log('Found top bar?', !!topBar);
+  // First approach: Try to find the week selector wrapper which contains both date and navigation
+  const weekSelectorWrapper = document.querySelector('div[class*="weekSelector"], div[class*="plasmic_page_wrapper"]');
 
-  if (topBar && !document.getElementById('cwph-add')) {
-    console.log('Injecting button into top bar');
-    const btn = document.createElement('button');
-    btn.id = 'cwph-add';
-    btn.textContent = 'Add Images';
-    topBar.appendChild(btn);
+  // Create our button
+  const btn = document.createElement('button');
+  btn.id = 'cwph-add';
+  btn.textContent = 'Add Images';
 
-    // Add our tracking when button is clicked
-    btn.addEventListener('click', () => {
-      // Tell our system user is intentionally adding icons
-      if (typeof userActions !== 'undefined') {
-        userActions.startAddingIcons();
-      }
+  // Create a floating button div that is positioned at the bottom right of the screen
+  // This avoids conflict with the logo in the top right
+  const btnContainer = document.createElement('div');
+  btnContainer.style.position = 'fixed';
+  btnContainer.style.bottom = '20px'; // Position at bottom instead of top
+  btnContainer.style.right = '20px';
+  btnContainer.style.zIndex = '99999';
+  btnContainer.style.display = 'flex';
+  btnContainer.style.alignItems = 'center';
+  btnContainer.style.justifyContent = 'center';
+  btnContainer.appendChild(btn);
 
-      // Then proceed with adding images
-      addImagesToMeals();
-    });
-    return true;
-  } else {
-    // Try alternative methods if the top bar is not found
-    console.log('Top bar not found, trying alternative methods');
-
-    // Try to find a header or navigation element
-    const possibleContainers = [
-      document.querySelector('header'),
-      document.querySelector('nav'),
-      document.querySelector('.header'),
-      document.querySelector('.navigation'),
-      // Add other potential elements
-      document.querySelector('body') // Last resort - add to body
-    ];
-
-    for (const container of possibleContainers) {
-      if (container && !document.getElementById('cwph-add')) {
-        console.log('Injecting button into alternative container', container);
-        const btn = document.createElement('button');
-        btn.id = 'cwph-add';
-        btn.textContent = 'Add Images';
-        btn.style.position = 'fixed';
-        btn.style.top = '10px';
-        btn.style.right = '10px';
-        btn.style.zIndex = '9999';
-        container.appendChild(btn);
-
-        // Add our tracking when button is clicked
-        btn.addEventListener('click', () => {
-          // Tell our system user is intentionally adding icons
-          if (typeof userActions !== 'undefined') {
-            userActions.startAddingIcons();
-          }
-
-          // Then proceed with adding images
-          addImagesToMeals();
-        });
-        return true;
-      }
+  // Add event listener to the button
+  btn.addEventListener('click', () => {
+    // Tell our system user is intentionally adding icons
+    if (typeof userActions !== 'undefined') {
+      userActions.startAddingIcons();
     }
-  }
 
-  console.log('Failed to inject button');
-  return false;
+    // Then proceed with adding images
+    addImagesToMeals();
+  });
+
+  // Add the container to the body
+  document.body.appendChild(btnContainer);
+  console.log('Added floating Add Images button to the page (bottom right)');
+  return true;
 }
 
 // Separate the action of adding images to meals
@@ -1024,13 +995,27 @@ function injectButtonStyles() {
   const style = document.createElement('style');
   style.textContent = `
     #cwph-add {
-      margin-left: 10px;
-      padding: 5px 10px;
+      padding: 10px 16px;
       background-color: #4285f4;
       color: white;
       border: none;
       border-radius: 4px;
       cursor: pointer;
+      font-weight: 500;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      font-size: 14px;
+      transition: background-color 0.2s, transform 0.1s;
+    }
+
+    #cwph-add:hover {
+      background-color: #3367d6;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+    }
+
+    #cwph-add:active {
+      transform: translateY(0);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     }
 
     .cwph-icon {
@@ -1156,32 +1141,9 @@ async function enhanceMenu() {
     }
 
     injectButtonStyles();
-    const buttonInjected = injectAddImagesButton();
 
-    if (!buttonInjected) {
-      console.log('Could not inject button automatically. Adding a floating button.');
-      // Create a floating button as a last resort
-      const floatingBtn = document.createElement('button');
-      floatingBtn.textContent = 'Add Images';
-      floatingBtn.id = 'cwph-add-floating';
-      floatingBtn.style.position = 'fixed';
-      floatingBtn.style.bottom = '20px';
-      floatingBtn.style.right = '20px';
-      floatingBtn.style.zIndex = '10000';
-      floatingBtn.style.padding = '10px 15px';
-      floatingBtn.style.backgroundColor = '#4285f4';
-      floatingBtn.style.color = 'white';
-      floatingBtn.style.border = 'none';
-      floatingBtn.style.borderRadius = '4px';
-      floatingBtn.style.cursor = 'pointer';
-      floatingBtn.style.boxShadow = '0 2px 5px rgba(0,0,0,0.3)';
-
-      floatingBtn.addEventListener('click', () => {
-        addImagesToMeals();
-      });
-
-      document.body.appendChild(floatingBtn);
-    }
+    // Inject the button - since our new approach always succeeds, we don't need a fallback
+    injectAddImagesButton();
 
     // Set up mutation observer to watch for DOM changes
     const root = document.getElementById('root') || document.body;
