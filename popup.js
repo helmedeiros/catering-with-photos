@@ -110,6 +110,13 @@ async function performSearch(query) {
       return;
     }
 
+    // Check if we're on a supported domain
+    const onSupportedDomain = await isOnSupportedDomain();
+    if (!onSupportedDomain) {
+      alert('This extension only works on Z-Catering (bestellung.z-catering.de)');
+      return;
+    }
+
     // Send message to content script
     await chrome.tabs.sendMessage(tab.id, { type: 'SEARCH', query });
 
@@ -117,6 +124,27 @@ async function performSearch(query) {
     await saveToHistory(query);
   } catch (error) {
     console.error('Error performing search:', error);
+  }
+}
+
+/**
+ * Checks if the current tab is on a supported domain
+ * @returns {Promise<boolean>} True if the tab is on a supported domain
+ */
+async function isOnSupportedDomain() {
+  try {
+    // Get the active tab
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab || !tab.url) {
+      return false;
+    }
+
+    // Check if the URL is from a supported domain
+    const url = new URL(tab.url);
+    return url.hostname === 'bestellung.z-catering.de' || url.hostname.includes('localhost');
+  } catch (error) {
+    console.error('Error checking domain:', error);
+    return false;
   }
 }
 
@@ -130,6 +158,13 @@ async function enhanceMenu() {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab) {
       console.error('No active tab found');
+      return;
+    }
+
+    // Check if we're on a supported domain
+    const onSupportedDomain = await isOnSupportedDomain();
+    if (!onSupportedDomain) {
+      alert('This extension only works on Z-Catering (bestellung.z-catering.de)');
       return;
     }
 
@@ -199,15 +234,37 @@ async function saveLanguagePreference(language) {
  */
 async function clearImageCache() {
   try {
-    // Clear the cache
-    const success = clearCache();
+    console.log('Clearing image cache');
 
-    if (success) {
-      // Show confirmation to the user
-      alert('Image cache cleared successfully!');
-    } else {
-      alert('Failed to clear image cache. Please try again.');
+    // Clear the local cache using the util function
+    const localSuccess = clearCache();
+    console.log(`Local cache cleared: ${localSuccess}`);
+
+    // Send message to content script to clear its cache too
+    try {
+      // Get the active tab
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+      // Only attempt to clear content script cache if on supported domain
+      if (tab) {
+        const onSupportedDomain = await isOnSupportedDomain();
+
+        if (onSupportedDomain) {
+          // Send clear cache message directly to content script
+          console.log('Sending CLEAR_CACHE message to content script');
+          const response = await chrome.tabs.sendMessage(tab.id, { type: 'CLEAR_CACHE' });
+          console.log('Content script cache clear response:', response);
+        }
+      } else {
+        console.warn('No active tab found, only cleared local cache');
+      }
+    } catch (connectionError) {
+      console.warn('Content script connection error (tab may not be a menu page):', connectionError);
+      // Continue with confirmation even if content script isn't available
     }
+
+    // Always show confirmation to user
+    alert('Image cache cleared successfully!');
   } catch (error) {
     console.error('Error clearing cache:', error);
     alert('An error occurred while clearing the cache.');
