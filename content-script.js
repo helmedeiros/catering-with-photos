@@ -1,18 +1,27 @@
 // content-script.js - Non-module version of the content script
-// Build: 2025-05-10T15:04:05.197Z
+// Build: 2025-05-10T15:18:37.145Z
 
 // Debug info
-console.log('%c Catering with Photos v1.1.31 ', 'background: #4CAF50; color: white; font-size: 12px; border-radius: 4px; padding: 2px 6px;');
-console.log('Build time:', '2025-05-10T15:04:05.197Z');
+console.log('%c Catering with Photos v1.1.35 ', 'background: #4CAF50; color: white; font-size: 12px; border-radius: 4px; padding: 2px 6px;');
+console.log('Build time:', '2025-05-10T15:18:37.145Z');
 
 // PAGE DETECTION - Determine which page we're on
 function detectCurrentPage() {
   console.log('🔍 Detecting current page...');
   const url = window.location.href;
+  const hostname = window.location.hostname;
   const title = document.title;
   const h1Text = Array.from(document.querySelectorAll('h1, h2, h3'))
     .map(el => el.textContent.trim())
     .join(' ');
+
+  // Check if we're on the Z-Catering domain or localhost (for testing)
+  const isZCateringDomain = hostname === 'bestellung.z-catering.de' || hostname.includes('localhost');
+
+  if (!isZCateringDomain) {
+    console.log('🚫 Not on Z-Catering domain, extension disabled');
+    return { isMenuPage: false, isWelcomePage: false, isValidDomain: false };
+  }
 
   const hasWeekSelector = !!document.querySelector('[class*="weekSelector"]');
   const hasMealElements = document.querySelectorAll('[class*="meal"]').length > 0;
@@ -25,8 +34,10 @@ function detectCurrentPage() {
 
   console.log('🔍 Page detection results:', {
     url,
+    hostname,
     title,
     headings: h1Text,
+    isZCateringDomain,
     hasWeekSelector,
     hasMealElements,
     hasWelcomeText,
@@ -34,7 +45,7 @@ function detectCurrentPage() {
     isWelcomePage
   });
 
-  return { isMenuPage, isWelcomePage };
+  return { isMenuPage, isWelcomePage, isValidDomain: true };
 }
 
 // Track user actions to prevent conflicts
@@ -104,7 +115,13 @@ const userActions = {
 
   let currentUrl = window.location.href;
   let currentTitle = document.title;
-  let { isMenuPage } = detectCurrentPage();
+  let { isMenuPage, isValidDomain } = detectCurrentPage();
+
+  // Skip if not on valid domain
+  if (!isValidDomain) {
+    console.log('👀 Not on Z-Catering domain, page change monitor disabled');
+    return;
+  }
 
   // Check for changes every second
   setInterval(() => {
@@ -121,7 +138,14 @@ const userActions = {
       currentTitle = newTitle;
 
       // Re-detect the page type
-      const { isMenuPage: newIsMenuPage } = detectCurrentPage();
+      const { isMenuPage: newIsMenuPage, isValidDomain: newIsValidDomain } = detectCurrentPage();
+
+      // Skip if we navigated away from valid domain
+      if (!newIsValidDomain) {
+        console.log('📄 Navigated away from Z-Catering domain');
+        isValidDomain = newIsValidDomain;
+        return;
+      }
 
       // If we've navigated to the menu page, enhance it
       if (newIsMenuPage && !isMenuPage) {
@@ -130,10 +154,11 @@ const userActions = {
       }
 
       isMenuPage = newIsMenuPage;
+      isValidDomain = newIsValidDomain;
     }
 
     // Also check for menu elements appearing without URL change
-    if (!isMenuPage) {
+    if (isValidDomain && !isMenuPage) {
       const hasMenuElements = document.querySelectorAll('[class*="PlasmicMenuplanmanagement_"]').length > 0;
       if (hasMenuElements) {
         console.log('📄 Menu elements detected without page change. Enhancing...');
@@ -1323,8 +1348,15 @@ async function enhanceMenu() {
   try {
     console.log('Enhancing menu...');
 
-    // Check if we're on the menu page
-    const { isMenuPage } = detectCurrentPage();
+    // Check if we're on the menu page and valid domain
+    const { isMenuPage, isValidDomain } = detectCurrentPage();
+
+    // Exit if not on valid domain
+    if (!isValidDomain) {
+      console.log('Not on Z-Catering domain. Skipping menu enhancement.');
+      return;
+    }
+
     if (!isMenuPage) {
       console.log('Not on menu page. Skipping menu enhancement.');
       return;
