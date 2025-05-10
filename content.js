@@ -2,11 +2,11 @@
 // Import fetchImages from the proper location
 import { fetchImages } from './utils/image-scraper.js';
 // content-script.js - Non-module version of the content script
-// Build: 2025-05-10T13:43:08.663Z
+// Build: 2025-05-10T14:24:54.798Z
 
 // Debug info
-console.log('%c Catering with Photos v1.1.23 ', 'background: #4CAF50; color: white; font-size: 12px; border-radius: 4px; padding: 2px 6px;');
-console.log('Build time:', '2025-05-10T13:43:08.663Z');
+console.log('%c Catering with Photos v1.1.24 ', 'background: #4CAF50; color: white; font-size: 12px; border-radius: 4px; padding: 2px 6px;');
+console.log('Build time:', '2025-05-10T14:24:54.798Z');
 
 // PAGE DETECTION - Determine which page we're on
 function detectCurrentPage() {
@@ -656,6 +656,7 @@ function openModal(title, images, errorMessage = '') {
   } else {
     // Always create a grid with 5 slots (3 on top row, 2 on bottom row)
     const imageCount = Math.min(5, images.length);
+    console.log(`DEBUG: Showing ${imageCount} images out of ${images.length} available`);
 
     // Add actual images
     for (let i = 0; i < imageCount; i++) {
@@ -1413,17 +1414,17 @@ function extractImageUrls(html) {
     const pattern1 = /"ou":"(https?:\/\/[^"]+)"/g;
     let match;
 
-    while ((match = pattern1.exec(html)) !== null && imageUrls.length < 10) {
+    while ((match = pattern1.exec(html)) !== null && imageUrls.length < 20) {
       if (match[1] && !match[1].includes('gstatic.com') && !match[1].includes('google.com')) {
         imageUrls.push(match[1]);
       }
     }
 
     // Pattern 2: Alternative format with array notation
-    if (imageUrls.length === 0) {
+    if (imageUrls.length < 15) {
       const pattern2 = /\["(https?:\/\/[^"]+\.(?:jpg|jpeg|png|gif|webp)[^"]*)",\d+,\d+\]/g;
 
-      while ((match = pattern2.exec(html)) !== null && imageUrls.length < 10) {
+      while ((match = pattern2.exec(html)) !== null && imageUrls.length < 20) {
         if (match[1] && !match[1].includes('gstatic.com') && !match[1].includes('google.com')) {
           imageUrls.push(match[1]);
         }
@@ -1431,10 +1432,10 @@ function extractImageUrls(html) {
     }
 
     // Pattern 3: Look for image URLs in src attributes
-    if (imageUrls.length === 0) {
+    if (imageUrls.length < 15) {
       const pattern3 = /src="(https?:\/\/[^"]+\.(?:jpg|jpeg|png|gif|webp)[^"]*)"/g;
 
-      while ((match = pattern3.exec(html)) !== null && imageUrls.length < 10) {
+      while ((match = pattern3.exec(html)) !== null && imageUrls.length < 20) {
         const url = match[1];
         if (url && !url.includes('gstatic.com') &&
             !url.includes('google.com') &&
@@ -1446,10 +1447,10 @@ function extractImageUrls(html) {
     }
 
     // Pattern 4: Look for URLs in data-src attributes (for lazy loading)
-    if (imageUrls.length === 0) {
+    if (imageUrls.length < 15) {
       const pattern4 = /data-src="(https?:\/\/[^"]+\.(?:jpg|jpeg|png|gif|webp)[^"]*)"/g;
 
-      while ((match = pattern4.exec(html)) !== null && imageUrls.length < 10) {
+      while ((match = pattern4.exec(html)) !== null && imageUrls.length < 20) {
         const url = match[1];
         if (url && !url.includes('gstatic.com') && !url.includes('google.com')) {
           imageUrls.push(url);
@@ -1458,10 +1459,10 @@ function extractImageUrls(html) {
     }
 
     // Pattern 5: Simple URL pattern for any remaining image URLs
-    if (imageUrls.length === 0) {
+    if (imageUrls.length < 15) {
       const pattern5 = /(https?:\/\/[^\s"]+\.(?:jpg|jpeg|png|gif|webp)[^\s"]*)/g;
 
-      while ((match = pattern5.exec(html)) !== null && imageUrls.length < 10) {
+      while ((match = pattern5.exec(html)) !== null && imageUrls.length < 20) {
         const url = match[1];
         if (url && !url.includes('gstatic.com') && !url.includes('google.com')) {
           imageUrls.push(url);

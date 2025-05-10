@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Catering with Photos",
   "description": "Enhances Z-Catering menu by displaying food images next to each menu item",
-  "version": "1.1.23",
+  "version": "1.1.24",
   "permissions": [
     "activeTab",
     "storage"
