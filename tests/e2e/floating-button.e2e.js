@@ -209,7 +209,14 @@ describe('Floating Show Dishes Button', () => {
 
     // Bottom and right should be approximately 20px from viewport edges
     // (allowing for some margin of error in different browsers)
-    expect(buttonPosition.bottom).toBeCloseTo(window.innerHeight, -1); // within ~10px
+    const viewportDimensions = await page.evaluate(() => {
+      return {
+        height: window.innerHeight,
+        width: window.innerWidth
+      };
+    });
+
+    expect(buttonPosition.bottom).toBeCloseTo(viewportDimensions.height, -1); // within ~10px
     expect(buttonPosition.right).toBeCloseTo(20, -1); // within ~10px
   });
 

@@ -2,11 +2,11 @@
 // Import fetchImages from the proper location
 import { fetchImages } from './utils/image-scraper.js';
 // content-script.js - Non-module version of the content script
-// Build: 2025-05-10T14:36:12.821Z
+// Build: 2025-05-10T15:04:05.197Z
 
 // Debug info
-console.log('%c Catering with Photos v1.1.25 ', 'background: #4CAF50; color: white; font-size: 12px; border-radius: 4px; padding: 2px 6px;');
-console.log('Build time:', '2025-05-10T14:36:12.821Z');
+console.log('%c Catering with Photos v1.1.31 ', 'background: #4CAF50; color: white; font-size: 12px; border-radius: 4px; padding: 2px 6px;');
+console.log('Build time:', '2025-05-10T15:04:05.197Z');
 
 // PAGE DETECTION - Determine which page we're on
 function detectCurrentPage() {
@@ -1032,7 +1032,7 @@ function addImagesToMeals() {
 
     console.log('Processing meal node:', mealNode.textContent.trim());
 
-    // Check if this meal already has an icon wrapper as a sibling
+    // Check for existing icon
     const existingWrapper = mealNode.nextElementSibling;
     if (existingWrapper && existingWrapper.classList.contains('cwph-icon-wrapper')) {
       console.log('Icon already exists for:', mealNode.textContent.trim());
@@ -1040,22 +1040,7 @@ function addImagesToMeals() {
       return; // Skip this meal node as it already has an icon
     }
 
-    // Also check if there's a wrapper anywhere after this node with the same dish name
-    const parentNode = mealNode.parentNode;
-    if (parentNode) {
-      const allWrappers = parentNode.querySelectorAll('.cwph-icon-wrapper');
-      for (const wrapper of allWrappers) {
-        const icon = wrapper.querySelector('.cwph-icon');
-        if (icon && icon.getAttribute('data-dish') === mealNode.textContent.trim()) {
-          console.log('Icon already exists for this dish elsewhere:', mealNode.textContent.trim());
-          addedCount.skipped++;
-          return; // Skip this meal node as it already has an icon
-        }
-      }
-    }
-
-    // Additional verification - make sure this is really attached to a container
-    // and not just floating in the body
+    // Additional verification
     let isInValidContainer = false;
     let current = mealNode.parentNode;
 
@@ -1090,16 +1075,26 @@ function addImagesToMeals() {
     textLabel.className = 'cwph-icon-label';
     textLabel.textContent = 'View dish';
 
-    // Create a wrapper to position the icon next to the meal item instead of inside it
-    const iconWrapper = document.createElement('span');
+    // Create a wrapper div that spans the full width
+    const iconWrapper = document.createElement('div');
     iconWrapper.className = 'cwph-icon-wrapper';
     iconWrapper.appendChild(iconSpan);
     iconWrapper.appendChild(textLabel);
 
-    // Insert after the meal node instead of appending as a child
-    mealNode.parentNode.insertBefore(iconWrapper, mealNode.nextSibling);
-    addedCount.successful++;
+    // Find the dish card/container (parent of the meal text)
+    let dishCard = mealNode.closest('[class*="card"], [class*="tile"], [class*="cell"]');
 
+    // If we found a card, add our icon wrapper after all its contents
+    if (dishCard) {
+      dishCard.appendChild(iconWrapper);
+    } else {
+      // Fallback to add after the meal node itself
+      if (mealNode.parentNode) {
+        mealNode.parentNode.appendChild(iconWrapper);
+      }
+    }
+
+    addedCount.successful++;
     console.log('Added icon to:', mealNode.textContent.trim());
   });
 
@@ -1171,37 +1166,55 @@ function injectButtonStyles() {
       box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     }
 
-    .cwph-icon {
-      margin-left: 5px;
-      cursor: pointer;
+    /* Simple fixed positioning solution for all icons */
+    .cwph-icon-wrapper {
       display: inline-block;
-      font-size: 14px;
-      opacity: 0.8;
-      transition: opacity 0.2s;
+      text-align: center;
+      margin-top: 8px;
+      width: 100%;
+      clear: both;
+      cursor: pointer;
+      padding: 5px 0;
+      transition: transform 0.2s, background-color 0.2s;
+      border-radius: 4px;
     }
 
-    .cwph-icon:hover {
-      opacity: 1;
+    .cwph-icon-wrapper:hover {
+      background-color: rgba(66, 133, 244, 0.1);
+      transform: translateY(-2px);
+    }
+
+    .cwph-icon-wrapper:active {
+      transform: translateY(0);
+    }
+
+    .cwph-icon {
+      display: inline-block;
+      vertical-align: middle;
+      margin-right: 4px;
+      transition: transform 0.2s;
+    }
+
+    .cwph-icon-wrapper:hover .cwph-icon {
+      transform: scale(1.1);
     }
 
     .cwph-icon-label {
-      margin-left: 4px;
-      font-size: 13px;
+      display: inline-block;
+      vertical-align: middle;
       color: #4285f4;
       font-weight: 500;
+      font-size: 13px;
+      text-decoration: none;
+      transition: color 0.2s;
     }
 
-    .cwph-icon-wrapper {
-      display: inline-flex;
-      align-items: center;
-      margin-left: 8px;
-      position: relative;
-      z-index: 10; /* Ensure icon is above other elements */
-      vertical-align: middle;
-      pointer-events: auto; /* Ensure clicks on icon are captured */
-      cursor: pointer;
+    .cwph-icon-wrapper:hover .cwph-icon-label {
+      color: #1967d2;
+      text-decoration: underline;
     }
 
+    /* Rest of the existing CSS */
     .cwph-modal {
       position: fixed;
       top: 0;
