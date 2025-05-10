@@ -66,7 +66,7 @@ describe('Enhance Menu Button', () => {
         if (topBar && !document.getElementById('cwph-add')) {
           const btn = document.createElement('button');
           btn.id = 'cwph-add';
-          btn.textContent = 'Add Images';
+          btn.textContent = 'Show dishes';
           topBar.appendChild(btn);
           btn.addEventListener('click', () => {
             // Simplified version of addImagesToMeals for testing
@@ -98,10 +98,10 @@ describe('Enhance Menu Button', () => {
               iconSpan.setAttribute('data-dish', mealNode.textContent.trim());
               iconSpan.innerHTML = '&#128269;'; // Magnifying glass emoji as HTML entity
 
-              // Create text label
+              // Create text label with View dish
               const textLabel = document.createElement('span');
               textLabel.className = 'cwph-icon-label';
-              textLabel.textContent = 'See Dish Photos';
+              textLabel.textContent = 'View dish';
 
               // Create a wrapper to position the icon next to the meal item instead of inside it
               const iconWrapper = document.createElement('span');
