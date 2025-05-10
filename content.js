@@ -2,11 +2,574 @@
 // Import fetchImages from the proper location
 import { fetchImages } from './utils/image-scraper.js';
 // content-script.js - Non-module version of the content script
-// Build: 2025-05-08T21:21:34.122Z
+// Build: 2025-05-10T07:38:44.473Z
 
 // Debug info
-console.log('%c Catering with Photos v1.1.5 ', 'background: #4CAF50; color: white; font-size: 12px; border-radius: 4px; padding: 2px 6px;');
-console.log('Build time:', '2025-05-08T21:21:34.122Z');
+console.log('%c Catering with Photos v1.1.11 ', 'background: #4CAF50; color: white; font-size: 12px; border-radius: 4px; padding: 2px 6px;');
+console.log('Build time:', '2025-05-10T07:38:44.473Z');
+
+// PAGE DETECTION - Determine which page we're on
+function detectCurrentPage() {
+  console.log('🔍 Detecting current page...');
+  const url = window.location.href;
+  const title = document.title;
+  const h1Text = Array.from(document.querySelectorAll('h1, h2, h3'))
+    .map(el => el.textContent.trim())
+    .join(' ');
+
+  const hasWeekSelector = !!document.querySelector('[class*="weekSelector"]');
+  const hasMealElements = document.querySelectorAll('[class*="meal"]').length > 0;
+  const hasWelcomeText =
+    document.body.textContent.includes('Willkommen') ||
+    document.body.textContent.includes('Wählen Sie ein Kind');
+
+  const isMenuPage = hasWeekSelector || hasMealElements;
+  const isWelcomePage = hasWelcomeText && !isMenuPage;
+
+  console.log('🔍 Page detection results:', {
+    url,
+    title,
+    headings: h1Text,
+    hasWeekSelector,
+    hasMealElements,
+    hasWelcomeText,
+    isMenuPage,
+    isWelcomePage
+  });
+
+  return { isMenuPage, isWelcomePage };
+}
+
+// Track user actions to prevent conflicts
+const userActions = {
+  addingIcons: false,  // Set to true when user clicks "Add Images"
+  navigating: false,   // Set to true during navigation
+  lastIconAddTime: 0,  // Track when icons were last added
+  lastActivityTime: Date.now(), // NEW: Track when user was last active on page
+
+  // NEW: Update last activity time
+  updateActivity: function() {
+    this.lastActivityTime = Date.now();
+  },
+
+  // Set when user is adding icons
+  startAddingIcons: function() {
+    this.addingIcons = true;
+    this.lastIconAddTime = Date.now();
+    this.lastActivityTime = Date.now(); // Update activity time
+    console.log('👤 User is adding icons');
+
+    // Reset after a reasonable time
+    setTimeout(() => {
+      this.addingIcons = false;
+      console.log('👤 Icon adding session ended');
+    }, 5000); // 5 seconds grace period
+  },
+
+  // Set when navigation is happening
+  startNavigating: function() {
+    this.navigating = true;
+    console.log('👤 User is navigating');
+
+    // Reset after navigation should be complete
+    setTimeout(() => {
+      this.navigating = false;
+      console.log('👤 Navigation session ended');
+    }, 2000);
+  },
+
+  // Check if we should avoid removing icons
+  shouldPreserveIcons: function() {
+    // Don't remove icons if user just added them (within last 30 seconds)
+    const timeSinceAdd = Date.now() - this.lastIconAddTime;
+    const timeSinceActivity = Date.now() - this.lastActivityTime;
+    const recentlyAdded = timeSinceAdd < 30000; // Increased from 10 to 30 seconds
+    const recentActivity = timeSinceActivity < 60000; // 1 minute of inactivity
+
+    // Check if any icon has been interacted with (hovered, clicked) recently
+    const hasRecentInteraction = document.querySelector('.cwph-icon-wrapper:hover, .cwph-icon:hover, .cwph-icon-label:hover');
+
+    // NEW: Check for active modals or photo viewing
+    const isViewingPhotos = document.querySelector('.cwph-modal, .cwph-photo-viewer');
+
+    if (this.addingIcons || recentlyAdded || hasRecentInteraction || isViewingPhotos || recentActivity) {
+      console.log(`👤 Preserving icons - User adding: ${this.addingIcons}, Recently added: ${recentlyAdded}, Recently active: ${recentActivity}, Time since add: ${timeSinceAdd}ms, Active interaction: ${!!hasRecentInteraction}, Viewing photos: ${!!isViewingPhotos}`);
+      return true;
+    }
+
+    return false;
+  }
+};
+
+// MONITOR PAGE CHANGES - Watch for navigation between pages
+(function pageChangeMonitor() {
+  console.log('👀 Setting up page change monitor');
+
+  let currentUrl = window.location.href;
+  let currentTitle = document.title;
+  let { isMenuPage } = detectCurrentPage();
+
+  // Check for changes every second
+  setInterval(() => {
+    const newUrl = window.location.href;
+    const newTitle = document.title;
+
+    if (newUrl !== currentUrl || newTitle !== currentTitle) {
+      console.log('📄 Page change detected!', {
+        from: currentUrl,
+        to: newUrl
+      });
+
+      currentUrl = newUrl;
+      currentTitle = newTitle;
+
+      // Re-detect the page type
+      const { isMenuPage: newIsMenuPage } = detectCurrentPage();
+
+      // If we've navigated to the menu page, enhance it
+      if (newIsMenuPage && !isMenuPage) {
+        console.log('📄 Navigated to menu page! Enhancing...');
+        setTimeout(enhanceMenu, 1000);
+      }
+
+      isMenuPage = newIsMenuPage;
+    }
+
+    // Also check for menu elements appearing without URL change
+    if (!isMenuPage) {
+      const hasMenuElements = document.querySelectorAll('[class*="PlasmicMenuplanmanagement_"]').length > 0;
+      if (hasMenuElements) {
+        console.log('📄 Menu elements detected without page change. Enhancing...');
+        isMenuPage = true;
+        setTimeout(enhanceMenu, 1000);
+      }
+    }
+  }, 1000);
+})();
+
+// CRITICAL FINAL FIX - Run immediately and override everything
+(function criticalFix() {
+  console.log('🚨 CRITICAL FIX: Adding direct navigation handlers and icon removers');
+
+  // Set up activity tracking
+  ['mousemove', 'click', 'keydown', 'scroll'].forEach(eventType => {
+    document.addEventListener(eventType, () => {
+      userActions.updateActivity();
+    }, { passive: true });
+  });
+
+  // Destroy ALL icon elements using multiple approaches
+  function nukeAllIcons(reason) {
+    // Check if we should preserve icons first
+    if (userActions.shouldPreserveIcons() && reason !== 'force') {
+      console.log('🛡️ Skipping icon removal - user recently added icons');
+      return;
+    }
+
+    console.log(`💣 CRITICAL: NUKING ALL ICONS (reason: ${reason})`);
+
+    // 1. Remove by class name
+    const iconWrappers = document.querySelectorAll('.cwph-icon-wrapper, .cwph-icon, .cwph-icon-label');
+    console.log(`💥 Removing ${iconWrappers.length} elements with icon classes`);
+    iconWrappers.forEach(el => el.remove());
+
+    // 2. Remove by content (magnifying glass emoji)
+    const allSpans = document.querySelectorAll('span');
+    let emojiSpans = 0;
+    allSpans.forEach(span => {
+      if (span.textContent.includes('🔍') ||
+          span.innerHTML.includes('&#128269;') ||
+          span.textContent.includes('See Dish Photos')) {
+        span.remove();
+        emojiSpans++;
+      }
+    });
+    console.log(`💥 Removed ${emojiSpans} spans with magnifying glass emoji or label text`);
+
+    // 3. Remove any possible parent containers of icons
+    const possibleContainers = document.querySelectorAll('.cwph-icon-wrapper');
+    possibleContainers.forEach(container => {
+      if (container.parentNode) {
+        container.parentNode.removeChild(container);
+      }
+    });
+
+    // 4. Find any spans next to meal text
+    const mealCards = document.querySelectorAll('[class*="meal"]');
+    let mealSpansRemoved = 0;
+    mealCards.forEach(card => {
+      // Check next siblings for any spans
+      let sibling = card.nextElementSibling;
+      while (sibling && sibling.tagName === 'SPAN') {
+        sibling.remove();
+        mealSpansRemoved++;
+        sibling = card.nextElementSibling;
+      }
+    });
+    console.log(`💥 Removed ${mealSpansRemoved} spans next to meal elements`);
+
+    // 5. Final count check
+    setTimeout(() => {
+      const remaining = document.querySelectorAll('.cwph-icon-wrapper, .cwph-icon, .cwph-icon-label');
+      console.log(`🔍 After cleanup: ${remaining.length} icon elements remain`);
+
+      if (remaining.length > 0) {
+        console.log('⚠️ Some icon elements were not removed. Trying alternative removal');
+        remaining.forEach(el => {
+          try {
+            // Try various removal methods
+            if (el.parentNode) {
+              el.parentNode.removeChild(el);
+            } else {
+              el.remove();
+            }
+          } catch (e) {
+            console.error('Failed to remove element:', e);
+          }
+        });
+      }
+    }, 100);
+  }
+
+  // Create a MutationObserver to watch for changes
+  const observer = new MutationObserver((mutations) => {
+    // Look for date changes or navigation
+    for (const mutation of mutations) {
+      if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+        // Check if new content was added that might indicate navigation
+        for (const node of mutation.addedNodes) {
+          if (node.nodeType === 1 &&
+              (node.className.includes('Plasmic') ||
+               node.className.includes('menu'))) {
+            console.log('🚨 CRITICAL: Detected content change - potential navigation');
+            userActions.startNavigating();
+            nukeAllIcons('navigation');
+            return;
+          }
+        }
+      }
+    }
+  });
+
+  // Set up the observer
+  observer.observe(document.body, { childList: true, subtree: true });
+
+  // Direct interception of navigation buttons
+  function setupNavigationHandlers() {
+    // Handle any existing navigation buttons
+    const svgButtons = document.querySelectorAll('button svg');
+
+    svgButtons.forEach(svg => {
+      const button = svg.closest('button');
+      if (button && !button._hasCriticalHandler) {
+        button._hasCriticalHandler = true;
+
+        button.addEventListener('click', () => {
+          console.log('🚨 CRITICAL: Navigation button clicked');
+          userActions.startNavigating();
+          nukeAllIcons('navigation button');
+
+          // Double check after a delay to catch any DOM changes
+          setTimeout(() => nukeAllIcons('delayed check'), 200);
+          setTimeout(() => nukeAllIcons('delayed check'), 500);
+          setTimeout(() => nukeAllIcons('delayed check'), 1000);
+        }, { capture: true });
+      }
+    });
+
+    // Also handle clicks directly on SVG and paths
+    document.addEventListener('click', event => {
+      const target = event.target;
+      if (target.tagName === 'svg' || target.tagName === 'path' ||
+          target.closest('svg')) {
+        console.log('🚨 CRITICAL: SVG or path element clicked');
+        userActions.startNavigating();
+        nukeAllIcons('svg/path click');
+
+        // Double check after a delay
+        setTimeout(() => nukeAllIcons('delayed check'), 200);
+        setTimeout(() => nukeAllIcons('delayed check'), 500);
+      }
+    }, { capture: true });
+
+    console.log('🚨 CRITICAL: Navigation handlers installed');
+  }
+
+  // Set up handlers immediately and after short delays
+  if (document.readyState !== 'loading') {
+    setupNavigationHandlers();
+  } else {
+    document.addEventListener('DOMContentLoaded', setupNavigationHandlers);
+  }
+
+  // Also try after delays
+  setTimeout(setupNavigationHandlers, 1000);
+  setTimeout(setupNavigationHandlers, 3000);
+
+  // Run initial nuke - but use force reason to ensure it runs
+  setTimeout(() => nukeAllIcons('initial cleanup'), 5000);
+
+  // Check periodically to see if there are any icons that should be removed
+  // But only if we're not in an adding session and not recently added
+  setInterval(() => {
+    // Skip if user is actively adding icons
+    if (userActions.shouldPreserveIcons()) {
+      return;
+    }
+
+    // NEW: Check if user is actively viewing icons (modal is open)
+    if (document.querySelector('.cwph-modal')) {
+      console.log('⏱️ Skipping periodic check while modal is open');
+      return;
+    }
+
+    const icons = document.querySelectorAll('.cwph-icon-wrapper, .cwph-icon, .cwph-icon-label');
+    if (icons.length > 0) {
+      console.log(`⏱️ Periodic check found ${icons.length} leftover icons`);
+      nukeAllIcons('periodic check');
+    }
+  }, 15000); // Increased from 5000 to 15000 (15 seconds)
+
+  // Override the addImagesToMeals function to add our hook
+  const originalAddImagesToMeals = window.addImagesToMeals;
+  window.addImagesToMeals = function() {
+    console.log('🚨 CRITICAL: addImagesToMeals was called');
+
+    // Mark that user is adding icons
+    userActions.startAddingIcons();
+
+    // Then call the original function
+    if (typeof originalAddImagesToMeals === 'function') {
+      return originalAddImagesToMeals.apply(this, arguments);
+    }
+  };
+})();
+
+// EMERGENCY FIXES FOR SPECIFIC BUTTONS - Run immediately
+(function emergencyFix() {
+  console.log('🚑 EMERGENCY FIX: Setting up direct path interceptors');
+
+  // Directly wait for document to be interactive
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupEmergencyHandlers);
+  } else {
+    setupEmergencyHandlers();
+  }
+
+  // Check again after 1 second
+  setTimeout(setupEmergencyHandlers, 1000);
+
+  // And again after 3 seconds
+  setTimeout(setupEmergencyHandlers, 3000);
+
+  function setupEmergencyHandlers() {
+    // The specific path strings we identified from the console logs
+    const pathPatterns = [
+      'M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z',
+      'M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z'
+    ];
+
+    // Find all SVG paths
+    const paths = document.querySelectorAll('path');
+
+    paths.forEach(path => {
+      const d = path.getAttribute('d');
+
+      // If this is one of our navigation paths
+      if (d && pathPatterns.some(pattern => d.includes(pattern.substring(0, 15)))) {
+        console.log('🚑 EMERGENCY FIX: Found navigation path:', d);
+
+        // Find the button containing this path
+        const button = path.closest('button');
+        if (button) {
+          console.log('🚑 EMERGENCY FIX: Found button for navigation path');
+
+          // Remove existing listeners and add our own
+          button.addEventListener('click', function(e) {
+            console.log('🚑 EMERGENCY FIX: Navigation button clicked!');
+            // Force clearing all icons
+            const iconWrappers = document.querySelectorAll('.cwph-icon-wrapper');
+            console.log(`🚑 EMERGENCY FIX: Clearing ${iconWrappers.length} icons`);
+            iconWrappers.forEach(wrapper => wrapper.remove());
+
+            // Show a confirmation
+            setTimeout(() => {
+              console.log('🚑 EMERGENCY FIX: Check completed after navigation');
+              const remainingIcons = document.querySelectorAll('.cwph-icon-wrapper');
+              console.log(`🚑 EMERGENCY FIX: ${remainingIcons.length} icons remaining after navigation`);
+            }, 500);
+          }, { capture: true });
+        }
+      }
+    });
+
+    // Also try to find button containers with SVG children
+    const svgButtons = document.querySelectorAll('button svg');
+    svgButtons.forEach((svg, i) => {
+      const button = svg.closest('button');
+      if (button) {
+        console.log(`🚑 EMERGENCY FIX: Found SVG button ${i}:`, button.outerHTML.substring(0, 100));
+
+        button.addEventListener('click', function(e) {
+          console.log('🚑 EMERGENCY FIX: SVG button clicked!');
+          // Force clearing all icons
+          const iconWrappers = document.querySelectorAll('.cwph-icon-wrapper');
+          console.log(`🚑 EMERGENCY FIX: Clearing ${iconWrappers.length} icons`);
+          iconWrappers.forEach(wrapper => wrapper.remove());
+
+          // Show a confirmation
+          setTimeout(() => {
+            console.log('🚑 EMERGENCY FIX: Check completed after navigation');
+            const remainingIcons = document.querySelectorAll('.cwph-icon-wrapper');
+            console.log(`🚑 EMERGENCY FIX: ${remainingIcons.length} icons remaining after navigation`);
+          }, 500);
+        }, { capture: true });
+      }
+    });
+
+    console.log('🚑 EMERGENCY FIX: Setup complete');
+  }
+})();
+
+// DIAGNOSTIC SCRIPT - Run immediately to debug the navigation buttons
+console.log('DIAGNOSTIC SCRIPT STARTING - THIS SHOULD BE VISIBLE IN CONSOLE');
+
+(function diagnosePage() {
+  console.log('🔎 DIAGNOSTIC: Analyzing page for navigation buttons');
+
+  // Log all buttons on the page
+  setTimeout(() => {
+    console.log('DELAYED DIAGNOSTIC - Should appear after 2 seconds');
+
+    const allButtons = document.querySelectorAll('button');
+    console.log(`🔎 DIAGNOSTIC: Found ${allButtons.length} buttons on page`);
+
+    allButtons.forEach((button, index) => {
+      console.log(`🔎 DIAGNOSTIC: Button ${index}:`, {
+        html: button.outerHTML.substring(0, 200),
+        hasSvg: !!button.querySelector('svg'),
+        text: button.textContent.trim(),
+        classes: button.className,
+        hasPath: !!button.querySelector('path')
+      });
+
+      // Force an ultra high-priority click listener on each button
+      button.addEventListener('click', (e) => {
+        console.log(`🚨 DIAGNOSTIC: Button ${index} was clicked!`, button.outerHTML.substring(0, 200));
+        // Don't prevent default or stop propagation
+      }, { capture: true });
+    });
+  }, 2000);
+
+  // Add a global click listener to track ANY click on the page
+  document.addEventListener('click', (e) => {
+    console.log('🚨 DIAGNOSTIC: Click detected on element:', e.target, {
+      tagName: e.target.tagName,
+      className: e.target.className,
+      id: e.target.id,
+      innerHTML: e.target.innerHTML?.substring(0, 100)
+    });
+  }, { capture: true });
+})();
+
+// Simple function to clear all icons - direct implementation for diagnostic purposes
+function clearAllIcons() {
+  console.log('Clearing all icons directly');
+  const iconWrappers = document.querySelectorAll('.cwph-icon-wrapper');
+  iconWrappers.forEach(wrapper => wrapper.remove());
+  console.log(`Removed ${iconWrappers.length} icons`);
+}
+
+// Direct global event handler for all buttons with svg - highest priority approach
+window.addEventListener('load', () => {
+  console.log('Window load event - attaching emergency handlers');
+
+  // Find all SVG buttons after page is fully loaded
+  setTimeout(() => {
+    const allSvgButtons = document.querySelectorAll('button svg');
+    console.log(`Found ${allSvgButtons.length} SVG buttons after window load`);
+
+    allSvgButtons.forEach((svg, i) => {
+      const button = svg.closest('button');
+      if (button) {
+        button.addEventListener('click', () => {
+          console.log(`SVG Button ${i} clicked from window load handler!`);
+          alert('SVG button clicked! This confirms the event was captured.');
+          clearAllIcons();
+        }, { capture: true });
+      }
+    });
+  }, 1000);
+});
+
+// Track the current date to detect navigation
+let currentDateText = '';
+let lastWeekSelector = null;
+
+// Function to clear all image icon buttons
+function clearIcons(reason) {
+  console.log(`🧹 Clearing icons: ${reason}`);
+  const existingWrappers = document.querySelectorAll('.cwph-icon-wrapper');
+  let count = 0;
+  existingWrappers.forEach(wrapper => {
+    wrapper.remove();
+    count++;
+  });
+  console.log(`🧹 Removed ${count} icons from page`);
+}
+
+// Function to check if date has changed and update tracking
+function checkForDateChange() {
+  // Look for date elements in the header or week selector
+  const weekSelector = document.querySelector('[class*="weekSelector"]');
+  const dateText = weekSelector?.textContent?.trim() || '';
+
+  console.log('Checking for date change. Current week selector:', weekSelector);
+
+  // First check for changed week selector content
+  if (lastWeekSelector && weekSelector && lastWeekSelector.textContent !== weekSelector.textContent) {
+    console.log('📅 Week selector content changed from:', lastWeekSelector.textContent, 'to:', weekSelector.textContent);
+    clearIcons('week selector content changed');
+    lastWeekSelector = weekSelector;
+    currentDateText = dateText;
+    return true;
+  }
+
+  // Store reference to current week selector for future comparisons
+  if (weekSelector) {
+    lastWeekSelector = weekSelector;
+  }
+
+  // Look for date elements in any other places
+  const dateElements = document.querySelectorAll('h3, .date-text, [class*="date"]');
+  let newDateText = dateText;
+
+  // Try to find a date-like element if week selector wasn't found
+  if (!newDateText) {
+    for (const el of dateElements) {
+      const text = el.textContent?.trim();
+      if (text && /\d{1,2}[./-]\d{1,2}[./-]?(\d{2,4})?/.test(text)) {
+        newDateText = text;
+        break;
+      }
+    }
+  }
+
+  // If date text has changed, remove icons
+  if (currentDateText && newDateText && currentDateText !== newDateText) {
+    console.log('📅 Date changed from', currentDateText, 'to', newDateText);
+    clearIcons('date text changed');
+    currentDateText = newDateText;
+    return true;
+  }
+
+  // Update the current date text
+  if (newDateText) {
+    currentDateText = newDateText;
+  }
+
+  return false;
+}
 
 // Utility functions from dom-utils.js
 async function waitForMenu(root = document, timeout = 10000) {
@@ -314,7 +877,15 @@ function injectAddImagesButton() {
     btn.id = 'cwph-add';
     btn.textContent = 'Add Images';
     topBar.appendChild(btn);
+
+    // Add our tracking when button is clicked
     btn.addEventListener('click', () => {
+      // Tell our system user is intentionally adding icons
+      if (typeof userActions !== 'undefined') {
+        userActions.startAddingIcons();
+      }
+
+      // Then proceed with adding images
       addImagesToMeals();
     });
     return true;
@@ -343,7 +914,15 @@ function injectAddImagesButton() {
         btn.style.right = '10px';
         btn.style.zIndex = '9999';
         container.appendChild(btn);
+
+        // Add our tracking when button is clicked
         btn.addEventListener('click', () => {
+          // Tell our system user is intentionally adding icons
+          if (typeof userActions !== 'undefined') {
+            userActions.startAddingIcons();
+          }
+
+          // Then proceed with adding images
           addImagesToMeals();
         });
         return true;
@@ -551,12 +1130,22 @@ async function enhanceMenu() {
   try {
     console.log('Enhancing menu...');
 
+    // Check if we're on the menu page
+    const { isMenuPage } = detectCurrentPage();
+    if (!isMenuPage) {
+      console.log('Not on menu page. Skipping menu enhancement.');
+      return;
+    }
+
     // Log the entire document structure for debugging
     console.log('Document structure:', {
       title: document.title,
       url: window.location.href,
       bodyChildren: document.body.children.length
     });
+
+    // Check if date text exists and track it
+    checkForDateChange();
 
     // Don't wait for the menu if it might not be present
     try {
@@ -595,10 +1184,14 @@ async function enhanceMenu() {
     }
 
     // Set up mutation observer to watch for DOM changes
-    const root = document.getElementById('root');
+    const root = document.getElementById('root') || document.body;
     if (root) {
       const observer = new MutationObserver((mutations) => {
+        // Check if date has changed
+        checkForDateChange();
+
         for (const mutation of mutations) {
+          // Check for added nodes that might be a new menu after date change
           for (const node of mutation.addedNodes) {
             if (
               node.nodeType === 1 &&
@@ -608,17 +1201,36 @@ async function enhanceMenu() {
                 node.className.startsWith('PlasmicMenuplanmanagement_') ||
                 node.className.includes('Plasmic') ||
                 node.className.includes('menu')
-              ) &&
-              !document.getElementById('cwph-add')
+              )
             ) {
+              console.log('Menu content changed, likely due to date navigation');
+              // Remove all existing image wrappers first
+              const existingWrappers = document.querySelectorAll('.cwph-icon-wrapper');
+              existingWrappers.forEach(wrapper => wrapper.remove());
+
+              // Then check if we need to re-add the "Add Images" button
+              if (!document.getElementById('cwph-add')) {
               console.log('Menu changed, reinjecting button');
               injectAddImagesButton();
+              }
               return;
             }
           }
+
+          // Also check for changes in the dates in the header which might indicate date navigation
+          if (mutation.target &&
+              mutation.target.className &&
+              typeof mutation.target.className === 'string' &&
+              (mutation.target.className.includes('date') ||
+               mutation.target.className.includes('navigation'))) {
+            console.log('Date navigation detected');
+            // Remove all existing image wrappers
+            const existingWrappers = document.querySelectorAll('.cwph-icon-wrapper');
+            existingWrappers.forEach(wrapper => wrapper.remove());
+          }
         }
       });
-      observer.observe(root, { childList: true, subtree: true });
+      observer.observe(root, { childList: true, subtree: true, characterData: true });
 
       // Store observer reference for cleanup in tests
       if (typeof window !== 'undefined' && window.__CWPH_TEST__) {
