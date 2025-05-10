@@ -2,11 +2,11 @@
 // Import fetchImages from the proper location
 import { fetchImages } from './utils/image-scraper.js';
 // content-script.js - Non-module version of the content script
-// Build: 2025-05-10T13:11:12.296Z
+// Build: 2025-05-10T13:17:57.572Z
 
 // Debug info
-console.log('%c Catering with Photos v1.1.19 ', 'background: #4CAF50; color: white; font-size: 12px; border-radius: 4px; padding: 2px 6px;');
-console.log('Build time:', '2025-05-10T13:11:12.296Z');
+console.log('%c Catering with Photos v1.1.20 ', 'background: #4CAF50; color: white; font-size: 12px; border-radius: 4px; padding: 2px 6px;');
+console.log('Build time:', '2025-05-10T13:17:57.572Z');
 
 // PAGE DETECTION - Determine which page we're on
 function detectCurrentPage() {
@@ -1248,8 +1248,16 @@ function injectButtonStyles() {
 
     .cwph-image-grid img {
       width: 100%;
-      height: auto;
+      height: 150px;
+      object-fit: cover;
       border-radius: 4px;
+      transition: transform 0.2s;
+    }
+
+    .cwph-image-grid img:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      cursor: pointer;
     }
 
     .cwph-see-more {
