@@ -189,3 +189,44 @@ footer p {
   flex-direction: column;
   gap: 8px;
 }
+
+/* Portal selection styles */
+.cwph-portal-container {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
+}
+
+.cwph-portal-container h2 {
+  font-size: 1rem;
+  margin-bottom: 8px;
+  color: #555;
+}
+
+.cwph-portal-options {
+  background-color: white;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 8px;
+}
+
+.cwph-portal-option {
+  display: flex;
+  align-items: center;
+  padding: 6px 4px;
+}
+
+.cwph-portal-option input[type="checkbox"] {
+  margin-right: 8px;
+}
+
+.cwph-portal-option input[disabled] + label {
+  color: #555;
+}
+
+.cwph-portal-note {
+  margin-top: 8px;
+  font-size: 0.8rem;
+  color: #777;
+  font-style: italic;
+}
