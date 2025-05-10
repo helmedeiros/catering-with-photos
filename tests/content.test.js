@@ -48,7 +48,7 @@ describe('content.js', () => {
     // Verify the button was created and properly positioned
     const button = document.getElementById('cwph-add');
     expect(button).not.toBeNull();
-    expect(button.textContent).toBe('Add Images');
+    expect(button.textContent).toBe('Show dishes');
 
     // Check that the container has the right positioning styles
     const container = button.parentElement;

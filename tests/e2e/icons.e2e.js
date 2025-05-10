@@ -3,7 +3,7 @@ describe('E2E: Icon injection (S2-4)', () => {
     await page.goto('http://localhost:5050/tests/e2e/fixture-menu.html');
   });
 
-  it('injects a .cwph-icon for each meal node after clicking Add Images', async () => {
+  it('injects a .cwph-icon for each meal node after clicking Show dishes', async () => {
     await page.waitForSelector('#cwph-add', { timeout: 2000 });
     await page.click('#cwph-add');
     // Wait for icons to be injected
@@ -20,8 +20,8 @@ describe('E2E: Icon injection (S2-4)', () => {
     const labelCount = await page.$$eval('.cwph-icon-label', nodes => nodes.length);
     expect(labelCount).toBe(mealCount);
 
-    const labelText = await page.$eval('.cwph-icon-label', el => el.textContent);
-    expect(labelText).toBe('See Dish Photos');
+    const labelText = await page.$eval('.cwph-icon-label', node => node.textContent);
+    expect(labelText).toBe('View dish');
 
     // Verify that icons are in wrappers next to meal nodes, not inside meal nodes
     const iconsNotInMeals = await page.$$eval('.meal-name', meals =>
@@ -30,17 +30,16 @@ describe('E2E: Icon injection (S2-4)', () => {
     expect(iconsNotInMeals).toBe(true);
   });
 
-  it('prevents duplicate icons when clicking Add Images multiple times', async () => {
+  it('prevents duplicate icons when clicking Show dishes multiple times', async () => {
     await page.waitForSelector('#cwph-add', { timeout: 2000 });
 
     // Count the initial number of meal nodes
     const mealCount = await page.$$eval('.meal-name', nodes => nodes.length);
 
-    // Click Add Images button multiple times
+    // Click Show dishes button multiple times
     for (let i = 0; i < 3; i++) {
       await page.click('#cwph-add');
-      // Use a brief delay between clicks using setTimeout
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await page.waitForTimeout(300); // Short delay to ensure operation completes
     }
 
     // Count the number of icon wrappers
@@ -59,6 +58,22 @@ describe('E2E: Icon injection (S2-4)', () => {
     expect(labelCount).toBe(mealCount);
   });
 
+  it('does not add icons to navigation elements', async () => {
+    // First make sure icons are added to the page
+    await page.evaluate(() => {
+      window.addImagesToMeals();
+    });
+
+    // Wait for icons to be added
+    await page.waitForSelector('.cwph-icon-wrapper');
+
+    // Create a selector that specifically looks for a standalone "View dish" text
+    const navigationIconsCount = await page.$$eval('button .cwph-icon-label, [id*="next"] .cwph-icon-label', elements => elements.length);
+
+    // Ensure no standalone wrappers exist
+    expect(navigationIconsCount).toBe(0);
+  });
+
   test('should not add a standalone icon at the bottom of the page', async () => {
     // First make sure icons are added to the page
     await page.evaluate(() => {
@@ -68,7 +83,7 @@ describe('E2E: Icon injection (S2-4)', () => {
     // Wait for icons to be added
     await page.waitForSelector('.cwph-icon-wrapper');
 
-    // Create a selector that specifically looks for a standalone "See Dish Photos" text
+    // Create a selector that specifically looks for a standalone "View dish" text
     // outside of a meal container
     const standaloneButton = await page.evaluate(() => {
       // Check if there are any icon wrappers directly in the document body

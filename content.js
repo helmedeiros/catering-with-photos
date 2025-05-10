@@ -2,11 +2,11 @@
 // Import fetchImages from the proper location
 import { fetchImages } from './utils/image-scraper.js';
 // content-script.js - Non-module version of the content script
-// Build: 2025-05-10T14:24:54.798Z
+// Build: 2025-05-10T14:36:12.821Z
 
 // Debug info
-console.log('%c Catering with Photos v1.1.24 ', 'background: #4CAF50; color: white; font-size: 12px; border-radius: 4px; padding: 2px 6px;');
-console.log('Build time:', '2025-05-10T14:24:54.798Z');
+console.log('%c Catering with Photos v1.1.25 ', 'background: #4CAF50; color: white; font-size: 12px; border-radius: 4px; padding: 2px 6px;');
+console.log('Build time:', '2025-05-10T14:36:12.821Z');
 
 // PAGE DETECTION - Determine which page we're on
 function detectCurrentPage() {
@@ -179,6 +179,7 @@ const userActions = {
     allSpans.forEach(span => {
       if (span.textContent.includes('🔍') ||
           span.innerHTML.includes('&#128269;') ||
+          span.textContent.includes('View dish') ||
           span.textContent.includes('See Dish Photos')) {
         span.remove();
         emojiSpans++;
@@ -871,7 +872,7 @@ function injectAddImagesButton() {
   // Create our button
   const btn = document.createElement('button');
   btn.id = 'cwph-add';
-  btn.textContent = 'Add Images';
+  btn.textContent = 'Show dishes';
 
   // Create a floating button div that is positioned at the bottom right of the screen
   // This avoids conflict with the logo in the top right
@@ -1087,7 +1088,7 @@ function addImagesToMeals() {
     // Create text label
     const textLabel = document.createElement('span');
     textLabel.className = 'cwph-icon-label';
-    textLabel.textContent = 'See Dish Photos';
+    textLabel.textContent = 'View dish';
 
     // Create a wrapper to position the icon next to the meal item instead of inside it
     const iconWrapper = document.createElement('span');

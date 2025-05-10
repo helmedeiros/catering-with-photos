@@ -236,14 +236,15 @@ describe('Modal E2E Flow', () => {
     expect(bodyStyleAfter).toBe('');
   }, 60000);
 
-  it('opens modal when clicking on the "See Dish Photos" text label', async () => {
-    // Click the "Add Images" button
+  it('opens modal when clicking on the "View dish" text label', async () => {
+    // Click the "Show dishes" button
+    await page.waitForSelector('#cwph-add');
     await page.click('#cwph-add');
 
-    // Wait for icons to be injected
-    await page.waitForSelector('.cwph-icon-label', { timeout: 30000 });
+    // Wait for icons to appear
+    await page.waitForSelector('.cwph-icon-label');
 
-    // Click on the "See Dish Photos" text label
+    // Click on the "View dish" text label
     await page.click('.cwph-icon-label');
 
     // Wait for modal and verify its contents
