@@ -2,11 +2,23 @@
 // Import fetchImages from the proper location
 import { fetchImages } from './utils/image-scraper.js';
 // content-script.js - Non-module version of the content script
-// Build: 2025-05-10T15:18:37.145Z
+// Build: 2026-01-02T16:30:57.813Z
 
 // Debug info
-console.log('%c Catering with Photos v1.1.35 ', 'background: #4CAF50; color: white; font-size: 12px; border-radius: 4px; padding: 2px 6px;');
-console.log('Build time:', '2025-05-10T15:18:37.145Z');
+console.log('%c Catering with Photos v1.1.37 ', 'background: #4CAF50; color: white; font-size: 12px; border-radius: 4px; padding: 2px 6px;');
+console.log('Build time:', '2026-01-02T16:30:57.813Z');
+
+// Helper function to safely get className as string
+// Handles both regular elements (className is string) and SVG elements (className is SVGAnimatedString)
+function getClassNameAsString(element) {
+  if (!element || !element.className) {
+    return '';
+  }
+  // SVG elements have className as an object with baseVal property
+  return typeof element.className === 'string'
+    ? element.className
+    : (element.className.baseVal || '');
+}
 
 // PAGE DETECTION - Determine which page we're on
 function detectCurrentPage() {
@@ -264,13 +276,14 @@ const userActions = {
       if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
         // Check if new content was added that might indicate navigation
         for (const node of mutation.addedNodes) {
-          if (node.nodeType === 1 &&
-              (node.className.includes('Plasmic') ||
-               node.className.includes('menu'))) {
-            console.log('🚨 CRITICAL: Detected content change - potential navigation');
-            userActions.startNavigating();
-            nukeAllIcons('navigation');
-            return;
+          if (node.nodeType === 1) {
+            const className = getClassNameAsString(node);
+            if (className.includes('Plasmic') || className.includes('menu')) {
+              console.log('🚨 CRITICAL: Detected content change - potential navigation');
+              userActions.startNavigating();
+              nukeAllIcons('navigation');
+              return;
+            }
           }
         }
       }
@@ -958,12 +971,13 @@ function addImagesToMeals() {
     const textNodes = Array.from(document.querySelectorAll('div, span, p, h1, h2, h3, h4, h5, h6'))
       .filter(el => {
         // Skip elements with specific classes or IDs that shouldn't have meal buttons
+        const elClassName = getClassNameAsString(el);
         if (
           (el.id && (el.id.includes('NEXT') || el.id.includes('next') || el.id.includes('data'))) ||
-          (el.className && (
-            el.className.includes('undefined') ||
-            el.className.includes('slick') ||
-            el.className.includes('footer')
+          (elClassName && (
+            elClassName.includes('undefined') ||
+            elClassName.includes('slick') ||
+            elClassName.includes('footer')
           )) ||
           el.closest('footer') ||
           el.closest('script') ||
@@ -995,7 +1009,7 @@ function addImagesToMeals() {
                (el.parentNode.children.length > 1) &&
                // 2. Make sure parent is not directly in body unless it's a recognized container
                (el.parentNode.parentNode !== document.body ||
-                el.parentNode.className.includes('container') ||
+                getClassNameAsString(el.parentNode).includes('container') ||
                 el.parentNode.id === 'root' ||
                 el.parentNode.querySelectorAll('[class*="meal"]').length > 2) &&
                // 3. Only consider elements that are likely to be meal names - with stricter regex
@@ -1071,8 +1085,9 @@ function addImagesToMeals() {
 
     // Check up to 5 levels up to find a valid container
     for (let i = 0; i < 5 && current; i++) {
+      const currentClassName = getClassNameAsString(current);
       if (
-        current.className.includes('container') ||
+        currentClassName.includes('container') ||
         current.id === 'root' ||
         current.querySelectorAll('[class*="meal"]').length > 2 ||
         current.querySelectorAll('.meal-name').length > 0
@@ -1398,40 +1413,37 @@ async function enhanceMenu() {
         for (const mutation of mutations) {
           // Check for added nodes that might be a new menu after date change
           for (const node of mutation.addedNodes) {
-            if (
-              node.nodeType === 1 &&
-              node.className &&
-              typeof node.className === 'string' &&
-              (
-                node.className.startsWith('PlasmicMenuplanmanagement_') ||
-                node.className.includes('Plasmic') ||
-                node.className.includes('menu')
-              )
-            ) {
-              console.log('Menu content changed, likely due to date navigation');
-              // Remove all existing image wrappers first
-              const existingWrappers = document.querySelectorAll('.cwph-icon-wrapper');
-              existingWrappers.forEach(wrapper => wrapper.remove());
+            if (node.nodeType === 1) {
+              const nodeClassName = getClassNameAsString(node);
+              if (
+                nodeClassName.startsWith('PlasmicMenuplanmanagement_') ||
+                nodeClassName.includes('Plasmic') ||
+                nodeClassName.includes('menu')
+              ) {
+                console.log('Menu content changed, likely due to date navigation');
+                // Remove all existing image wrappers first
+                const existingWrappers = document.querySelectorAll('.cwph-icon-wrapper');
+                existingWrappers.forEach(wrapper => wrapper.remove());
 
-              // Then check if we need to re-add the "Add Images" button
-              if (!document.getElementById('cwph-add')) {
-              console.log('Menu changed, reinjecting button');
-              injectAddImagesButton();
+                // Then check if we need to re-add the "Add Images" button
+                if (!document.getElementById('cwph-add')) {
+                  console.log('Menu changed, reinjecting button');
+                  injectAddImagesButton();
+                }
+                return;
               }
-              return;
             }
           }
 
           // Also check for changes in the dates in the header which might indicate date navigation
-          if (mutation.target &&
-              mutation.target.className &&
-              typeof mutation.target.className === 'string' &&
-              (mutation.target.className.includes('date') ||
-               mutation.target.className.includes('navigation'))) {
-            console.log('Date navigation detected');
-            // Remove all existing image wrappers
-            const existingWrappers = document.querySelectorAll('.cwph-icon-wrapper');
-            existingWrappers.forEach(wrapper => wrapper.remove());
+          if (mutation.target && mutation.target.nodeType === 1) {
+            const targetClassName = getClassNameAsString(mutation.target);
+            if (targetClassName.includes('date') || targetClassName.includes('navigation')) {
+              console.log('Date navigation detected');
+              // Remove all existing image wrappers
+              const existingWrappers = document.querySelectorAll('.cwph-icon-wrapper');
+              existingWrappers.forEach(wrapper => wrapper.remove());
+            }
           }
         }
       });
