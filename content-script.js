@@ -1,9 +1,9 @@
 // content-script.js - Non-module version of the content script
-// Build: 2026-01-02T16:30:57.813Z
+// Build: 2026-01-08T14:59:23.154Z
 
 // Debug info
-console.log('%c Catering with Photos v1.1.37 ', 'background: #4CAF50; color: white; font-size: 12px; border-radius: 4px; padding: 2px 6px;');
-console.log('Build time:', '2026-01-02T16:30:57.813Z');
+console.log('%c Catering with Photos v1.1.60 ', 'background: #4CAF50; color: white; font-size: 12px; border-radius: 4px; padding: 2px 6px;');
+console.log('Build time:', '2026-01-08T14:59:23.154Z');
 
 // Helper function to safely get className as string
 // Handles both regular elements (className is string) and SVG elements (className is SVGAnimatedString)
@@ -1029,6 +1029,9 @@ function addImagesToMeals() {
     skipped: 0
   };
 
+  // Track which meal texts we've already processed to prevent duplicates
+  const processedMealTexts = new Set();
+
   // Filter out any 'Next' elements
   mealNodes = mealNodes.filter(node => {
     const text = node.textContent.trim();
@@ -1066,14 +1069,38 @@ function addImagesToMeals() {
       return;
     }
 
-    console.log('Processing meal node:', mealNode.textContent.trim());
+    const mealText = mealNode.textContent.trim();
 
-    // Check for existing icon
-    const existingWrapper = mealNode.nextElementSibling;
-    if (existingWrapper && existingWrapper.classList.contains('cwph-icon-wrapper')) {
-      console.log('Icon already exists for:', mealNode.textContent.trim());
+    // Skip if we've already processed this exact meal text
+    if (processedMealTexts.has(mealText)) {
+      console.log('Already processed meal with this text:', mealText);
       addedCount.skipped++;
-      return; // Skip this meal node as it already has an icon
+      return;
+    }
+
+    console.log('Processing meal node:', mealText);
+
+    // Check for existing icon within the dish card container
+    // First, find the dish card - try multiple selectors to find the actual card container
+    let dishCard = mealNode.closest('[class*="mealCard"]') ||
+                   mealNode.closest('[class*="card"]') ||
+                   mealNode.closest('[class*="tile"]') ||
+                   mealNode.closest('[class*="cell"]');
+
+    console.log('Found dishCard:', dishCard ? dishCard.className : 'null');
+
+    // Skip if we've already processed this card (using data attribute)
+    if (dishCard && dishCard.hasAttribute('data-cwph-processed')) {
+      console.log('Card already processed (has attribute):', mealNode.textContent.trim());
+      addedCount.skipped++;
+      return;
+    }
+
+    // Check if an icon already exists within this card from previous runs
+    if (dishCard && dishCard.querySelector('.cwph-icon-wrapper')) {
+      console.log('Icon already exists in card for:', mealNode.textContent.trim());
+      addedCount.skipped++;
+      return; // Skip this meal node as the card already has an icon
     }
 
     // Additional verification
@@ -1112,27 +1139,83 @@ function addImagesToMeals() {
     textLabel.className = 'cwph-icon-label';
     textLabel.textContent = 'View dish';
 
-    // Create a wrapper div that spans the full width
+    // Create a wrapper div
     const iconWrapper = document.createElement('div');
     iconWrapper.className = 'cwph-icon-wrapper';
     iconWrapper.appendChild(iconSpan);
     iconWrapper.appendChild(textLabel);
 
-    // Find the dish card/container (parent of the meal text)
-    let dishCard = mealNode.closest('[class*="card"], [class*="tile"], [class*="cell"]');
+    // Add click handler directly to the wrapper (not using event delegation)
+    iconWrapper.addEventListener('click', async (event) => {
+      // Prevent ALL event propagation
+      event.stopPropagation();
+      event.preventDefault();
+      event.stopImmediatePropagation();
 
-    // If we found a card, add our icon wrapper after all its contents
-    if (dishCard) {
-      dishCard.appendChild(iconWrapper);
-    } else {
-      // Fallback to add after the meal node itself
-      if (mealNode.parentNode) {
-        mealNode.parentNode.appendChild(iconWrapper);
+      const dishName = iconSpan.getAttribute('data-dish');
+      try {
+        const images = await fetchImages(dishName);
+        if (images.length === 0) {
+          openModal(dishName, [], 'No images found for this dish. Try a different search term.');
+        } else {
+          openModal(dishName, images);
+        }
+      } catch (error) {
+        openModal(dishName, [], 'Unable to load images. Please check your internet connection and try again.');
       }
+
+      return false; // Extra prevention
+    }, { capture: true });
+
+    // Re-use the dishCard we found earlier (no need to search again)
+    // IMPORTANT: Add icon AFTER the card (as a sibling), not inside it
+    // This prevents the icon click from triggering the card's click handler
+    if (dishCard) {
+      // Double-check right before appending (defensive check)
+      if (dishCard.querySelector('.cwph-icon-wrapper')) {
+        console.log('Icon appeared during processing, skipping');
+        addedCount.skipped++;
+        return;
+      }
+
+      // Wrap the card in a container, then add icon after the card
+      // This keeps the icon outside the clickable card but visually below it
+
+      // Check if the card is already wrapped
+      if (!dishCard.parentElement.classList.contains('cwph-card-wrapper')) {
+        // Create wrapper container
+        const wrapper = document.createElement('div');
+        wrapper.className = 'cwph-card-wrapper';
+
+        // Insert wrapper before the card
+        dishCard.parentNode.insertBefore(wrapper, dishCard);
+
+        // Move card into wrapper
+        wrapper.appendChild(dishCard);
+
+        // Add icon after the card inside the wrapper
+        wrapper.appendChild(iconWrapper);
+
+        console.log('Added icon in wrapper below card for:', mealText);
+      } else {
+        // Already wrapped, just add the icon
+        dishCard.parentElement.appendChild(iconWrapper);
+        console.log('Added icon to existing wrapper for:', mealText);
+      }
+
+      // Mark this card as processed with a data attribute
+      dishCard.setAttribute('data-cwph-processed', 'true');
+      // Mark this meal text as processed
+      processedMealTexts.add(mealText);
+    } else {
+      // CRITICAL: If we can't find a dishCard, skip this node entirely to prevent duplicates
+      console.log('Could not find dishCard for meal node, skipping to prevent duplicates:', mealText);
+      addedCount.skipped++;
+      return;
     }
 
     addedCount.successful++;
-    console.log('Added icon to:', mealNode.textContent.trim());
+    console.log('Added icon to:', mealText);
   });
 
   // Log summary of what happened
@@ -1203,17 +1286,24 @@ function injectButtonStyles() {
       box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     }
 
-    /* Simple fixed positioning solution for all icons */
-    .cwph-icon-wrapper {
-      display: inline-block;
-      text-align: center;
-      margin-top: 8px;
+    /* Wrapper to contain card + icon */
+    .cwph-card-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
       width: 100%;
-      clear: both;
+    }
+
+    /* Icon positioned below the card */
+    .cwph-icon-wrapper {
+      display: block;
+      text-align: center;
+      margin: 8px 0 0 0;
+      padding: 6px 12px;
       cursor: pointer;
-      padding: 5px 0;
       transition: transform 0.2s, background-color 0.2s;
       border-radius: 4px;
+      width: auto;
     }
 
     .cwph-icon-wrapper:hover {
@@ -1658,26 +1748,8 @@ if (document.readyState === 'loading') {
   });
 }
 
-// Add event delegation for icon clicks
-document.body.addEventListener('click', async (event) => {
-  // Check if click is on icon wrapper or any of its children
-  const iconWrapper = event.target.closest('.cwph-icon-wrapper');
-  if (iconWrapper) {
-    event.stopPropagation(); // Stop event from propagating to parent elements
-    const iconElement = iconWrapper.querySelector('.cwph-icon');
-    const dishName = iconElement.getAttribute('data-dish');
-    try {
-      const images = await fetchImages(dishName);
-      if (images.length === 0) {
-        openModal(dishName, [], 'No images found for this dish. Try a different search term.');
-      } else {
-        openModal(dishName, images);
-      }
-    } catch (error) {
-      openModal(dishName, [], 'Unable to load images. Please check your internet connection and try again.');
-    }
-  }
-});
+// Note: Click handlers are now added directly to each icon wrapper when created
+// This ensures they fire before any parent event listeners
 
 // Handle retry event
 document.addEventListener('cwph-retry', async (event) => {
