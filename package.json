@@ -16,7 +16,8 @@
     "test:with-script": "npm run prepare-tests && npm test && npm run clean-tests",
     "build": "node scripts/build.js",
     "zip": "zip -r catering-with-photos-v$(node -p \"require('./manifest.json').version\").zip . -x \"*.git*\" \"*node_modules*\" \"*.zip\" \"*test*\" \"*scripts*\"",
-    "package": "npm run build && npm run zip"
+    "package": "npm run build && npm run zip",
+    "demo": "playwright install chromium && node docs/demo/record.mjs"
   },
   "devDependencies": {
     "@babel/core": "^7.27.1",
@@ -29,7 +30,8 @@
     "jest-puppeteer": "^11.0.0",
     "jest-environment-jsdom": "^29.7.0",
     "start-server-and-test": "^2.0.2",
-    "http-server": "^14.1.1"
+    "http-server": "^14.1.1",
+    "playwright": "1.49.1"
   },
   "jest": {
     "testEnvironment": "jsdom",

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Speiseplan</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #f4f6f3;
+      color: #23302a;
+    }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 32px;
+      background: #2f6b4f;
+      color: #fff;
+    }
+    .brand { font-size: 20px; font-weight: 700; letter-spacing: 0.3px; }
+    .child { font-size: 14px; opacity: 0.9; }
+    .weekSelector {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      padding: 16px 0 6px;
+      font-size: 17px;
+      font-weight: 600;
+    }
+    .weekSelector span.arrow {
+      display: inline-flex;
+      width: 30px;
+      height: 30px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: #fff;
+      border: 1px solid #d5ddd7;
+      color: #2f6b4f;
+    }
+    .PlasmicMenuplanmanagement_container {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 18px;
+      padding: 18px 32px 90px;
+    }
+    .day { display: flex; flex-direction: column; gap: 12px; }
+    .dayLabel {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: #5b6b62;
+      text-align: center;
+    }
+    .mealCard {
+      width: 100%;
+      min-height: 150px;
+      background: #fff;
+      border: 1px solid #dde4df;
+      border-radius: 10px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .mealLine { font-size: 11px; font-weight: 700; color: #2f6b4f; text-transform: uppercase; }
+    .meal-name { font-size: 15px; font-weight: 600; line-height: 1.3; }
+    .mealInfo { font-size: 12px; color: #6b7a71; margin-top: auto; }
+  </style>
+</head>
+<body>
+  <div id="root">
+    <div class="topbar">
+      <div class="brand">Speiseplan</div>
+      <div class="child">Klasse 3b</div>
+    </div>
+    <div class="weekSelector">
+      <span class="arrow">&lsaquo;</span>
+      <span>KW 12</span>
+      <span class="arrow">&rsaquo;</span>
+    </div>
+    <div class="PlasmicMenuplanmanagement_container">
+      <div class="day">
+        <div class="dayLabel">Montag</div>
+        <div class="mealCard">
+          <div class="mealLine">Menü 1</div>
+          <div class="meal-name">Spaghetti Bolognese</div>
+          <div class="mealInfo">mit Reibekäse</div>
+        </div>
+      </div>
+      <div class="day">
+        <div class="dayLabel">Dienstag</div>
+        <div class="mealCard">
+          <div class="mealLine">Menü 1</div>
+          <div class="meal-name">Hähnchenschnitzel</div>
+          <div class="mealInfo">mit Bratkartoffeln</div>
+        </div>
+      </div>
+      <div class="day">
+        <div class="dayLabel">Mittwoch</div>
+        <div class="mealCard">
+          <div class="mealLine">Menü 1</div>
+          <div class="meal-name">Gemüselasagne</div>
+          <div class="mealInfo">vegetarisch</div>
+        </div>
+      </div>
+      <div class="day">
+        <div class="dayLabel">Donnerstag</div>
+        <div class="mealCard">
+          <div class="mealLine">Menü 1</div>
+          <div class="meal-name">Tomatensuppe</div>
+          <div class="mealInfo">mit Brötchen</div>
+        </div>
+      </div>
+      <div class="day">
+        <div class="dayLabel">Freitag</div>
+        <div class="mealCard">
+          <div class="mealLine">Menü 1</div>
+          <div class="meal-name">Lachsfilet</div>
+          <div class="mealInfo">mit Spinat und Reis</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

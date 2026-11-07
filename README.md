@@ -4,6 +4,12 @@ A Chrome extension that adds food photos to the
 [Z-Catering](https://bestellung.z-catering.de/app/menuplan) meal-selection
 interface, so kids and parents can choose meals by sight rather than by name.
 
+![Show dishes adds a View dish link under every menu item](docs/demo/show-dishes.gif)
+*One click on Show dishes adds a View dish link under every meal of the week.*
+
+![View dish opens a gallery of food photos for that meal](docs/demo/view-dish.gif)
+*View dish opens a photo gallery of the meal; close it and check the next one.*
+
 ## Features
 
 - Adds a small search icon next to each menu item; clicking it opens a modal with
