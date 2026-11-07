@@ -28,6 +28,18 @@ describe('E2E: Icon injection (S2-4)', () => {
       meals.every(meal => !meal.querySelector('.cwph-icon'))
     );
     expect(iconsNotInMeals).toBe(true);
+
+    const placement = await page.$$eval('[class*="mealCard"]', cards => cards.map(card => ({
+      iconInsideCard: !!card.querySelector('.cwph-icon'),
+      wrappedWithIcon: !!(card.parentElement &&
+        card.parentElement.classList.contains('cwph-card-wrapper') &&
+        card.parentElement.querySelector(':scope > .cwph-icon-wrapper .cwph-icon'))
+    })));
+    expect(placement.length).toBe(mealCount);
+    placement.forEach(p => {
+      expect(p.iconInsideCard).toBe(false);
+      expect(p.wrappedWithIcon).toBe(true);
+    });
   });
 
   it('prevents duplicate icons when clicking Show dishes multiple times', async () => {
